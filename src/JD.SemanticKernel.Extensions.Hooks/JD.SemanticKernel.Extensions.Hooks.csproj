@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
+    <IsPackable>true</IsPackable>
+    <Description>Map Claude Code lifecycle hooks (PreToolUse, PostToolUse, etc.) to Semantic Kernel IFunctionInvocationFilter, IPromptRenderFilter, and IAutoFunctionInvocationFilter. Supports command, prompt, and filter hook types.</Description>
+    <PackageTags>semantic-kernel;hooks;claude-code;ai;extensions;filters</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SemanticKernel" />
+    <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Link="README.md" />
+  </ItemGroup>
+
+</Project>

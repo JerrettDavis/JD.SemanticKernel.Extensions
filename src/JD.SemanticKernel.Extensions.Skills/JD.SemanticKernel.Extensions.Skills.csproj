@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
+    <IsPackable>true</IsPackable>
+    <Description>Load Claude Code SKILL.md files as Semantic Kernel KernelFunctions or PromptTemplates. Parses YAML frontmatter and markdown content, maps arguments, and registers skills into the SK kernel.</Description>
+    <PackageTags>semantic-kernel;skills;claude-code;ai;extensions</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SemanticKernel" />
+    <PackageReference Include="YamlDotNet" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Link="README.md" />
+  </ItemGroup>
+
+</Project>

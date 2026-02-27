@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
+    <IsPackable>true</IsPackable>
+    <Description>Load Claude Code .claude-plugin directories into Semantic Kernel. Orchestrates skill, hook, and MCP server loading from plugin manifests with dependency resolution.</Description>
+    <PackageTags>semantic-kernel;plugins;claude-code;ai;extensions</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\JD.SemanticKernel.Extensions.Skills\JD.SemanticKernel.Extensions.Skills.csproj" />
+    <ProjectReference Include="..\JD.SemanticKernel.Extensions.Hooks\JD.SemanticKernel.Extensions.Hooks.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SemanticKernel" />
+    <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Link="README.md" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
+    <IsPackable>true</IsPackable>
+    <Description>Meta-package for JD.SemanticKernel.Extensions. Provides unified UseSkills(), UsePlugins(), and UseHooks() extension methods for loading Claude Code skills, plugins, and hooks into Semantic Kernel.</Description>
+    <PackageTags>semantic-kernel;skills;hooks;plugins;claude-code;ai;extensions</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\JD.SemanticKernel.Extensions.Skills\JD.SemanticKernel.Extensions.Skills.csproj" />
+    <ProjectReference Include="..\JD.SemanticKernel.Extensions.Hooks\JD.SemanticKernel.Extensions.Hooks.csproj" />
+    <ProjectReference Include="..\JD.SemanticKernel.Extensions.Plugins\JD.SemanticKernel.Extensions.Plugins.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Link="README.md" />
+  </ItemGroup>
+
+</Project>
