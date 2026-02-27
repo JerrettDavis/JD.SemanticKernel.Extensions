@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <!-- Testing framework -->
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Xunit.SkippableFact" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+
+  <!-- SK connectors for real LLM / embedding providers -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+  </ItemGroup>
+
+  <!-- Extension packages under test -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\JD.SemanticKernel.Extensions.Compaction\JD.SemanticKernel.Extensions.Compaction.csproj" />
+    <ProjectReference Include="..\..\src\JD.SemanticKernel.Extensions.Memory\JD.SemanticKernel.Extensions.Memory.csproj" />
+    <ProjectReference Include="..\..\src\JD.SemanticKernel.Extensions.Memory.Sqlite\JD.SemanticKernel.Extensions.Memory.Sqlite.csproj" />
+  </ItemGroup>
+
+</Project>
