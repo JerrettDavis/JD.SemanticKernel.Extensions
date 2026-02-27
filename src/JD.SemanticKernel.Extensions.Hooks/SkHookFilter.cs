@@ -30,10 +30,10 @@ public sealed class SkHookFilter : IFunctionInvocationFilter
         Func<FunctionInvocationContext, Task>? postHandler = null)
     {
         _preToolPattern = preToolPattern is not null
-            ? new Regex(preToolPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase)
+            ? new Regex(preToolPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(5))
             : null;
         _postToolPattern = postToolPattern is not null
-            ? new Regex(postToolPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase)
+            ? new Regex(postToolPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(5))
             : null;
         _preHandler = preHandler;
         _postHandler = postHandler;

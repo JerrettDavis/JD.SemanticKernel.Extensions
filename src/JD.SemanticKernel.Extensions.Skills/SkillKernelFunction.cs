@@ -33,7 +33,7 @@ public static class SkillKernelFunction
         // Replace positional args $0, $1, etc.
         foreach (var arg in definition.Arguments)
         {
-            if (arg.Key != "ARGUMENTS")
+            if (!string.Equals(arg.Key, "ARGUMENTS", StringComparison.Ordinal))
                 template = template.Replace($"${arg.Key}", $"{{{{$arg{arg.Key}}}}}");
         }
 
@@ -56,7 +56,7 @@ public static class SkillKernelFunction
             });
         }
 
-        foreach (var arg in definition.Arguments.Where(a => a.Key != "ARGUMENTS"))
+        foreach (var arg in definition.Arguments.Where(a => !string.Equals(a.Key, "ARGUMENTS", StringComparison.Ordinal)))
         {
             promptConfig.InputVariables.Add(new InputVariable
             {

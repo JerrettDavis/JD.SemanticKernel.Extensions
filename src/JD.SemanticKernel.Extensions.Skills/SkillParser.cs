@@ -14,12 +14,14 @@ namespace JD.SemanticKernel.Extensions.Skills;
 public static class SkillParser
 {
     private static readonly Regex s_frontmatterRegex = new(
-        @"^---\s*\r?\n(.*?)\r?\n---\s*\r?\n",
-        RegexOptions.Singleline | RegexOptions.Compiled);
+        @"^---\s*\r?\n(?<yaml>.*?)\r?\n---\s*\r?\n",
+        RegexOptions.Singleline | RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(5));
 
     private static readonly Regex s_argumentRegex = new(
-        @"\$(?:ARGUMENTS|(\d+))\b",
-        RegexOptions.Compiled);
+        @"\$(?:ARGUMENTS|(?<num>\d+))\b",
+        RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(5));
 
     private static readonly IDeserializer s_yamlDeserializer = new DeserializerBuilder()
         .WithNamingConvention(HyphenatedNamingConvention.Instance)
@@ -46,7 +48,7 @@ public static class SkillParser
 
         if (match.Success)
         {
-            var yaml = match.Groups[1].Value;
+            var yaml = match.Groups["yaml"].Value;
             ParseFrontmatter(yaml, definition);
             definition.Body = content.Substring(match.Index + match.Length).Trim();
         }
@@ -99,7 +101,7 @@ public static class SkillParser
                 foreach (var tool in toolList)
                 {
                     var toolStr = tool?.ToString();
-                    if (!string.IsNullOrEmpty(toolStr))
+                    if (toolStr is not null)
                         definition.AllowedTools.Add(toolStr);
                 }
             }
@@ -132,8 +134,8 @@ public static class SkillParser
         var matches = s_argumentRegex.Matches(definition.Body);
         foreach (Match m in matches)
         {
-            if (m.Groups[1].Success)
-                definition.Arguments[m.Groups[1].Value] = $"Argument ${m.Groups[1].Value}";
+            if (m.Groups["num"].Success)
+                definition.Arguments[m.Groups["num"].Value] = $"Argument ${m.Groups["num"].Value}";
             else
                 definition.Arguments["ARGUMENTS"] = "The input arguments for the skill";
         }
@@ -146,7 +148,11 @@ public static class SkillParser
         while ((line = reader.ReadLine()) is not null)
         {
             line = line.Trim();
+#if NET8_0_OR_GREATER
+            if (line.StartsWith('#'))
+#else
             if (line.StartsWith("#", StringComparison.Ordinal))
+#endif
             {
                 var heading = line.TrimStart('#').Trim();
                 if (!string.IsNullOrEmpty(heading))
@@ -157,10 +163,12 @@ public static class SkillParser
         return null;
     }
 
+#pragma warning disable CA1308 // Slug generation requires lowercase
     private static string Slugify(string text)
     {
         var slug = text.ToLowerInvariant()
             .Replace(' ', '-');
-        return Regex.Replace(slug, @"[^a-z0-9\-]", string.Empty);
+        return Regex.Replace(slug, @"[^a-z0-9\-]", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(5));
     }
+#pragma warning restore CA1308
 }

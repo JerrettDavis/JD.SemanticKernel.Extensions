@@ -77,8 +77,10 @@ public static class HookParser
         return Parse(json);
     }
 
+#pragma warning disable CA1308 // Event matching requires lowercase comparison
     private static HookEvent ParseEvent(string? eventName) =>
         eventName?.ToLowerInvariant() switch
+#pragma warning restore CA1308
         {
             "pretooluse" => HookEvent.PreToolUse,
             "posttooluse" => HookEvent.PostToolUse,

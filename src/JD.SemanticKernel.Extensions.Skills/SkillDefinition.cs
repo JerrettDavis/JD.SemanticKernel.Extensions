@@ -25,18 +25,18 @@ public sealed class SkillDefinition
     /// <summary>
     /// Gets the list of allowed tools from YAML frontmatter.
     /// </summary>
-    public List<string> AllowedTools { get; } = [];
+    public IList<string> AllowedTools { get; } = new List<string>();
 
     /// <summary>
     /// Gets the argument definitions parsed from the skill body.
     /// Keys are argument names (e.g., "ARGUMENTS", "0", "1").
     /// </summary>
-    public Dictionary<string, string> Arguments { get; } = [];
+    public IDictionary<string, string> Arguments { get; } = new Dictionary<string, string>(StringComparer.Ordinal);
 
     /// <summary>
     /// Gets additional YAML frontmatter properties not explicitly mapped.
     /// </summary>
-    public Dictionary<string, object> Metadata { get; } = [];
+    public IDictionary<string, object> Metadata { get; } = new Dictionary<string, object>(StringComparer.Ordinal);
 
     /// <summary>
     /// Gets or sets the source file path of the SKILL.md.

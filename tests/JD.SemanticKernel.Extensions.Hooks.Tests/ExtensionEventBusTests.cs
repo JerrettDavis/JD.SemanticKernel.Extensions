@@ -41,7 +41,7 @@ public class ExtensionEventBusTests
         bus.Subscribe(e => received = e);
         bus.Publish(new ExtensionEvent(
             HookEvent.PreCompact,
-            new Dictionary<string, object> { ["reason"] = "context_full" }));
+            new Dictionary<string, object>(StringComparer.Ordinal) { ["reason"] = "context_full" }));
 
         Assert.NotNull(received);
         Assert.Equal("context_full", received.Data["reason"]);

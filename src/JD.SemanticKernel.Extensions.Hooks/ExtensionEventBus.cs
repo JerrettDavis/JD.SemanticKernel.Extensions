@@ -30,7 +30,7 @@ public sealed class ExtensionEvent
     {
         Event = hookEvent;
         Timestamp = DateTimeOffset.UtcNow;
-        Data = data ?? new Dictionary<string, object>();
+        Data = data ?? new Dictionary<string, object>(StringComparer.Ordinal);
     }
 }
 
