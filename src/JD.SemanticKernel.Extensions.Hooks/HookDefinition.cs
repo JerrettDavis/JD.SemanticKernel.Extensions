@@ -42,7 +42,7 @@ public sealed class HookDefinition
     /// <summary>
     /// Gets additional metadata properties.
     /// </summary>
-    public Dictionary<string, object> Metadata { get; } = [];
+    public IDictionary<string, object> Metadata { get; } = new Dictionary<string, object>(StringComparer.Ordinal);
 }
 
 /// <summary>

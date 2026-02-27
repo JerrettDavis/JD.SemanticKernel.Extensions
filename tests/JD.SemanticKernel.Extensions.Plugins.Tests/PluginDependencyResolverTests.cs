@@ -76,9 +76,9 @@ public class PluginDependencyResolverTests
         Assert.Equal("a", sorted[0].Manifest.Name);
         Assert.Equal(4, sorted.Count);
         // d must come after b and c
-        var dIndex = sorted.ToList().FindIndex(p => p.Manifest.Name == "d");
-        var bIndex = sorted.ToList().FindIndex(p => p.Manifest.Name == "b");
-        var cIndex = sorted.ToList().FindIndex(p => p.Manifest.Name == "c");
+        var dIndex = sorted.ToList().FindIndex(p => string.Equals(p.Manifest.Name, "d", StringComparison.Ordinal));
+        var bIndex = sorted.ToList().FindIndex(p => string.Equals(p.Manifest.Name, "b", StringComparison.Ordinal));
+        var cIndex = sorted.ToList().FindIndex(p => string.Equals(p.Manifest.Name, "c", StringComparison.Ordinal));
         Assert.True(dIndex > bIndex);
         Assert.True(dIndex > cIndex);
     }
