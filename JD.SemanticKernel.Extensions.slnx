@@ -16,6 +16,8 @@
     <Project Path="tests/JD.SemanticKernel.Extensions.Memory.Tests/JD.SemanticKernel.Extensions.Memory.Tests.csproj" />
     <Project Path="tests/JD.SemanticKernel.Extensions.Memory.Sqlite.Tests/JD.SemanticKernel.Extensions.Memory.Sqlite.Tests.csproj" />
     <Project Path="tests/JD.SemanticKernel.Extensions.IntegrationTests/JD.SemanticKernel.Extensions.IntegrationTests.csproj" />
+    <Project Path="tests/JD.AI.Tui.Tests/JD.AI.Tui.Tests.csproj" />
+    <Project Path="tests/JD.AI.Tui.IntegrationTests/JD.AI.Tui.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/SkillDemo/SkillDemo.csproj" />
