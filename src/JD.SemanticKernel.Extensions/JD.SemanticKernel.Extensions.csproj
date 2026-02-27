@@ -12,6 +12,8 @@
     <ProjectReference Include="..\JD.SemanticKernel.Extensions.Skills\JD.SemanticKernel.Extensions.Skills.csproj" />
     <ProjectReference Include="..\JD.SemanticKernel.Extensions.Hooks\JD.SemanticKernel.Extensions.Hooks.csproj" />
     <ProjectReference Include="..\JD.SemanticKernel.Extensions.Plugins\JD.SemanticKernel.Extensions.Plugins.csproj" />
+    <ProjectReference Include="..\JD.SemanticKernel.Extensions.Compaction\JD.SemanticKernel.Extensions.Compaction.csproj" />
+    <ProjectReference Include="..\JD.SemanticKernel.Extensions.Memory\JD.SemanticKernel.Extensions.Memory.csproj" />
   </ItemGroup>
 
   <ItemGroup>

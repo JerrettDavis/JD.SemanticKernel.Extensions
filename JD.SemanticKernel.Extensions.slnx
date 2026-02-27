@@ -3,15 +3,23 @@
     <Project Path="src/JD.SemanticKernel.Extensions.Skills/JD.SemanticKernel.Extensions.Skills.csproj" />
     <Project Path="src/JD.SemanticKernel.Extensions.Hooks/JD.SemanticKernel.Extensions.Hooks.csproj" />
     <Project Path="src/JD.SemanticKernel.Extensions.Plugins/JD.SemanticKernel.Extensions.Plugins.csproj" />
+    <Project Path="src/JD.SemanticKernel.Extensions.Compaction/JD.SemanticKernel.Extensions.Compaction.csproj" />
+    <Project Path="src/JD.SemanticKernel.Extensions.Memory/JD.SemanticKernel.Extensions.Memory.csproj" />
+    <Project Path="src/JD.SemanticKernel.Extensions.Memory.Sqlite/JD.SemanticKernel.Extensions.Memory.Sqlite.csproj" />
     <Project Path="src/JD.SemanticKernel.Extensions/JD.SemanticKernel.Extensions.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/JD.SemanticKernel.Extensions.Skills.Tests/JD.SemanticKernel.Extensions.Skills.Tests.csproj" />
     <Project Path="tests/JD.SemanticKernel.Extensions.Hooks.Tests/JD.SemanticKernel.Extensions.Hooks.Tests.csproj" />
     <Project Path="tests/JD.SemanticKernel.Extensions.Plugins.Tests/JD.SemanticKernel.Extensions.Plugins.Tests.csproj" />
+    <Project Path="tests/JD.SemanticKernel.Extensions.Compaction.Tests/JD.SemanticKernel.Extensions.Compaction.Tests.csproj" />
+    <Project Path="tests/JD.SemanticKernel.Extensions.Memory.Tests/JD.SemanticKernel.Extensions.Memory.Tests.csproj" />
+    <Project Path="tests/JD.SemanticKernel.Extensions.Memory.Sqlite.Tests/JD.SemanticKernel.Extensions.Memory.Sqlite.Tests.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/SkillDemo/SkillDemo.csproj" />
     <Project Path="samples/PluginDemo/PluginDemo.csproj" />
+    <Project Path="samples/CompactionDemo/CompactionDemo.csproj" />
+    <Project Path="samples/MemoryDemo/MemoryDemo.csproj" />
   </Folder>
 </Solution>
