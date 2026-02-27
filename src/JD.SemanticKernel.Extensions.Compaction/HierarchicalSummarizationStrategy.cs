@@ -90,11 +90,13 @@ public sealed class HierarchicalSummarizationStrategy : ICompactionStrategy
         }
 
         var targetPercentage = (int)(options.TargetCompressionRatio * 100);
+#pragma warning disable CA1863 // CompositeFormat not available on netstandard2.0
         var prompt = string.Format(
             System.Globalization.CultureInfo.InvariantCulture,
             SummarizationPrompt,
             targetPercentage,
             conversationText.ToString());
+#pragma warning restore CA1863
 
         // Use the configured summary model or the default chat completion service
         var chatService = string.IsNullOrEmpty(options.SummaryModelId)
