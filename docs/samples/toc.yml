@@ -1,0 +1,4 @@
+- name: Skill Demo
+  href: skill-demo.md
+- name: Plugin Demo
+  href: plugin-demo.md

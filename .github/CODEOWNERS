@@ -1,0 +1,30 @@
+# Code Owners for JD.SemanticKernel.Extensions
+# These users will be automatically requested for review
+
+# Global owners
+* @jerrettdavis
+
+# Workflows and CI/CD
+/.github/ @jerrettdavis
+
+# Documentation
+/docs/ @jerrettdavis
+*.md @jerrettdavis
+
+# Skills library
+/src/JD.SemanticKernel.Extensions.Skills/ @jerrettdavis
+
+# Hooks library
+/src/JD.SemanticKernel.Extensions.Hooks/ @jerrettdavis
+
+# Plugins library
+/src/JD.SemanticKernel.Extensions.Plugins/ @jerrettdavis
+
+# Meta-package
+/src/JD.SemanticKernel.Extensions/ @jerrettdavis
+
+# Samples
+/samples/ @jerrettdavis
+
+# Tests
+/tests/ @jerrettdavis
