@@ -22,6 +22,10 @@
   <!-- ─── Samples ─── -->
   <ItemGroup>
     <PackageVersion Include="System.CommandLine" Version="2.0.3" />
+    <PackageVersion Include="Spectre.Console" Version="0.54.0" />
+    <PackageVersion Include="HtmlAgilityPack" Version="1.12.2" />
+    <PackageVersion Include="JD.SemanticKernel.Connectors.ClaudeCode" Version="0.1.17" />
+    <PackageVersion Include="JD.SemanticKernel.Connectors.GitHubCopilot" Version="0.1.14" />
   </ItemGroup>
 
   <!-- ─── Testing ─── -->

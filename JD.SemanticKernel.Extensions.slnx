@@ -22,5 +22,6 @@
     <Project Path="samples/PluginDemo/PluginDemo.csproj" />
     <Project Path="samples/CompactionDemo/CompactionDemo.csproj" />
     <Project Path="samples/MemoryDemo/MemoryDemo.csproj" />
+    <Project Path="samples/JD.AI.Tui/JD.AI.Tui.csproj" />
   </Folder>
 </Solution>
