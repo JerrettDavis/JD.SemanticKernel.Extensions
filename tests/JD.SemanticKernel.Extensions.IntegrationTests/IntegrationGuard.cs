@@ -24,19 +24,35 @@ internal static class IntegrationGuard
 
 /// <summary>
 /// Well-known Ollama configuration.
+/// Model names and endpoint are overridable via environment variables
+/// to support CI with smaller models.
 /// </summary>
 internal static class OllamaConfig
 {
-    public const string Endpoint = "http://localhost:11434/v1";
-    public const string ChatModel = "llama3.2:3b";
-    public const string EmbeddingModel = "all-minilm:22m";
+    private const string DefaultEndpoint = "http://localhost:11434/v1";
+    private const string DefaultChatModel = "llama3.2:3b";
+    private const string DefaultEmbeddingModel = "all-minilm:22m";
+
+    public static string Endpoint =>
+        Environment.GetEnvironmentVariable("OLLAMA_ENDPOINT") is { Length: > 0 } ep
+            ? ep.TrimEnd('/') + "/v1"
+            : DefaultEndpoint;
+
+    public static string ChatModel =>
+        Environment.GetEnvironmentVariable("OLLAMA_CHAT_MODEL") is { Length: > 0 } m
+            ? m : DefaultChatModel;
+
+    public static string EmbeddingModel =>
+        Environment.GetEnvironmentVariable("OLLAMA_EMBEDDING_MODEL") is { Length: > 0 } m
+            ? m : DefaultEmbeddingModel;
 
     public static bool IsAvailable()
     {
         try
         {
+            var baseUrl = Endpoint.Replace("/v1", "", StringComparison.Ordinal);
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
-            var response = client.GetAsync("http://localhost:11434/api/tags").Result;
+            var response = client.GetAsync($"{baseUrl}/api/tags").Result;
             return response.IsSuccessStatusCode;
         }
         catch
@@ -48,11 +64,11 @@ internal static class OllamaConfig
     /// <summary>
     /// Creates a Kernel configured with Ollama's OpenAI-compatible chat endpoint.
     /// </summary>
-    public static Kernel CreateChatKernel(string model = ChatModel)
+    public static Kernel CreateChatKernel(string? model = null)
     {
         return Kernel.CreateBuilder()
             .AddOpenAIChatCompletion(
-                modelId: model,
+                modelId: model ?? ChatModel,
                 apiKey: "ollama",
                 endpoint: new Uri(Endpoint))
             .Build();
@@ -62,11 +78,11 @@ internal static class OllamaConfig
     /// Creates a Kernel configured with Ollama's OpenAI-compatible embedding endpoint.
     /// </summary>
 #pragma warning disable SKEXP0010, CS0618
-    public static Kernel CreateEmbeddingKernel(string model = EmbeddingModel)
+    public static Kernel CreateEmbeddingKernel(string? model = null)
     {
         return Kernel.CreateBuilder()
             .AddOpenAITextEmbeddingGeneration(
-                modelId: model,
+                modelId: model ?? EmbeddingModel,
                 apiKey: "ollama",
                 httpClient: CreateOllamaHttpClient())
             .Build();
@@ -76,16 +92,16 @@ internal static class OllamaConfig
     /// Creates a Kernel configured with both chat and embedding from Ollama.
     /// </summary>
     public static Kernel CreateFullKernel(
-        string chatModel = ChatModel,
-        string embeddingModel = EmbeddingModel)
+        string? chatModel = null,
+        string? embeddingModel = null)
     {
         return Kernel.CreateBuilder()
             .AddOpenAIChatCompletion(
-                modelId: chatModel,
+                modelId: chatModel ?? ChatModel,
                 apiKey: "ollama",
                 endpoint: new Uri(Endpoint))
             .AddOpenAITextEmbeddingGeneration(
-                modelId: embeddingModel,
+                modelId: embeddingModel ?? EmbeddingModel,
                 apiKey: "ollama",
                 httpClient: CreateOllamaHttpClient())
             .Build();
