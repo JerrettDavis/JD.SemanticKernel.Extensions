@@ -28,17 +28,14 @@ jobs:
     name: Integration Tests (Ollama)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      checks: write
     services:
       ollama:
         image: ollama/ollama:latest
         ports:
           - 11434:11434
-        options: >-
-          --health-cmd "curl -sf http://localhost:11434/api/version || exit 1"
-          --health-interval 10s
-          --health-retries 10
-          --health-start-period 30s
-          --health-timeout 5s
 
     steps:
       - name: Checkout
@@ -56,15 +53,17 @@ jobs:
       - name: Wait for Ollama
         run: |
           echo "⏳ Waiting for Ollama to be ready..."
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:11434/api/version; then
-              echo ""
-              echo "✅ Ollama is ready"
-              break
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:11434/api/version > /dev/null 2>&1; then
+              echo "✅ Ollama is ready (attempt $i)"
+              curl -sf http://localhost:11434/api/version
+              exit 0
             fi
-            echo "  Attempt $i/30..."
-            sleep 2
+            echo "  Attempt $i/60 — waiting..."
+            sleep 3
           done
+          echo "❌ Ollama failed to start"
+          exit 1
 
       - name: Pull models
         run: |
