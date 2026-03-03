@@ -15,7 +15,9 @@ public static class McpKernelPluginFactory
 {
     /// <summary>
     /// Creates a <see cref="KernelPlugin"/> that exposes all tools from the given MCP server.
-    /// The server connection is established lazily on first tool invocation.
+    /// The server connection is established eagerly: <see cref="IMcpClient.InitializeAsync"/> and
+    /// <see cref="IMcpClient.GetToolsAsync"/> are called during plugin creation. The returned plugin's
+    /// functions share the underlying <see cref="IMcpClient"/> instance for all subsequent invocations.
     /// </summary>
     /// <param name="server">The MCP server definition to create a plugin from.</param>
     /// <returns>A <see cref="KernelPlugin"/> containing one <see cref="KernelFunction"/> per MCP tool.</returns>
@@ -72,7 +74,7 @@ public static class McpKernelPluginFactory
         {
             Description = p.Description,
             IsRequired = p.IsRequired,
-            ParameterType = typeof(string),
+            ParameterType = MapJsonSchemaType(p.Type),
         }).ToList();
 
         return KernelFunctionFactory.CreateFromMethod(
@@ -97,6 +99,20 @@ public static class McpKernelPluginFactory
             parameters: parameters,
             returnParameter: new KernelReturnParameterMetadata { Description = "Tool output" });
     }
+
+    /// <summary>
+    /// Maps a JSON Schema <paramref name="schemaType"/> string to an appropriate CLR <see cref="Type"/>.
+    /// </summary>
+    private static Type MapJsonSchemaType(string? schemaType) =>
+        schemaType switch
+        {
+            "integer" => typeof(long),
+            "number" => typeof(double),
+            "boolean" => typeof(bool),
+            "array" => typeof(object),
+            "object" => typeof(object),
+            _ => typeof(string), // "string" and unknown types default to string
+        };
 
     private static string NormalizeName(string name)
     {

@@ -87,7 +87,15 @@ public sealed class HttpMcpClient : IMcpClient, IDisposable
             capabilities = new { }
         });
 
-        var _ = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+        using var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+
+        // Validate that the initialize response is not a JSON-RPC error before proceeding.
+        if (response.RootElement.TryGetProperty("error", out var initErrorEl))
+            throw new InvalidOperationException($"MCP initialize failed: {initErrorEl.GetRawText()}");
+
+        // Send the follow-up notifications/initialized notification expected by some servers.
+        await SendNotificationAsync("notifications/initialized", cancellationToken).ConfigureAwait(false);
+
         _initialized = true;
     }
 
@@ -100,7 +108,7 @@ public sealed class HttpMcpClient : IMcpClient, IDisposable
         var requestId = Interlocked.Increment(ref _nextId);
         var request = CreateRequest(requestId, "tools/list", new { });
 
-        var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+        using var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
         return ParseTools(response);
     }
 
@@ -127,7 +135,7 @@ public sealed class HttpMcpClient : IMcpClient, IDisposable
             arguments
         });
 
-        var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+        using var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
         return ParseInvocationResult(response);
     }
 
@@ -140,6 +148,23 @@ public sealed class HttpMcpClient : IMcpClient, IDisposable
 
     private static object CreateRequest(int id, string method, object @params) =>
         new { jsonrpc = "2.0", id, method, @params };
+
+    private async Task SendNotificationAsync(string method, CancellationToken cancellationToken)
+    {
+        var notification = new { jsonrpc = "2.0", method };
+        var json = JsonSerializer.Serialize(notification);
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, _endpoint)
+        {
+            Content = content
+        };
+        httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var httpResponse = await _httpClient
+            .SendAsync(httpRequest, cancellationToken)
+            .ConfigureAwait(false);
+        // Notifications may receive 200 OK or 204 No Content; we do not parse the response body.
+    }
 
     private async Task<JsonDocument> SendRequestAsync(object request, CancellationToken cancellationToken)
     {

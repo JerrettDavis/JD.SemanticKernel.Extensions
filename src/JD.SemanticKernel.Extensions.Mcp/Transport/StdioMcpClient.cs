@@ -18,6 +18,9 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
     private readonly IReadOnlyList<string>? _args;
     private readonly IReadOnlyDictionary<string, string>? _env;
 
+    // Serializes send+receive pairs so concurrent callers cannot interleave writes/reads.
+    private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+
     private Process? _process;
     private int _nextId;
     private bool _initialized;
@@ -69,38 +72,45 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
 
         EnsureProcess();
 
-        var requestId = Interlocked.Increment(ref _nextId);
-        var initRequest = new
+        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            jsonrpc = "2.0",
-            id = requestId,
-            method = "initialize",
-            @params = new
+            // Double-check after acquiring the lock to handle concurrent callers.
+            if (_initialized)
+                return;
+
+            var requestId = Interlocked.Increment(ref _nextId);
+            var initRequest = new
             {
-                protocolVersion = "2024-11-05",
-                clientInfo = new { name = "JD.SemanticKernel.Extensions.Mcp", version = "1.0" },
-                capabilities = new { }
-            }
-        };
+                jsonrpc = "2.0",
+                id = requestId,
+                method = "initialize",
+                @params = new
+                {
+                    protocolVersion = "2024-11-05",
+                    clientInfo = new { name = "JD.SemanticKernel.Extensions.Mcp", version = "1.0" },
+                    capabilities = new { }
+                }
+            };
 
-        await SendRequestAsync(initRequest, cancellationToken).ConfigureAwait(false);
-        var _ = await ReadResponseAsync(cancellationToken).ConfigureAwait(false);
+            await WriteLineAsync(JsonSerializer.Serialize(initRequest), cancellationToken).ConfigureAwait(false);
 
-        // Send initialized notification
-        var notification = new { jsonrpc = "2.0", method = "notifications/initialized" };
-        var notificationJson = JsonSerializer.Serialize(notification);
-        await _process!.StandardInput.WriteLineAsync(notificationJson
-#if NET8_0_OR_GREATER
-            .AsMemory(), cancellationToken
-#endif
-        ).ConfigureAwait(false);
-        await _process.StandardInput.FlushAsync(
-#if NET8_0_OR_GREATER
-            cancellationToken
-#endif
-        ).ConfigureAwait(false);
+            using var response = await ReadResponseCoreAsync(cancellationToken).ConfigureAwait(false);
 
-        _initialized = true;
+            // Validate the initialize response is not a JSON-RPC error.
+            if (response.RootElement.TryGetProperty("error", out var initErrorEl))
+                throw new InvalidOperationException($"MCP initialize failed: {initErrorEl.GetRawText()}");
+
+            // Send the initialized notification expected by the server.
+            var notification = new { jsonrpc = "2.0", method = "notifications/initialized" };
+            await WriteLineAsync(JsonSerializer.Serialize(notification), cancellationToken).ConfigureAwait(false);
+
+            _initialized = true;
+        }
+        finally
+        {
+            _lock.Release();
+        }
     }
 
     /// <inheritdoc/>
@@ -118,10 +128,17 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
             @params = new { }
         };
 
-        await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
-        var response = await ReadResponseAsync(cancellationToken).ConfigureAwait(false);
-
-        return ParseTools(response);
+        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await WriteLineAsync(JsonSerializer.Serialize(request), cancellationToken).ConfigureAwait(false);
+            using var response = await ReadResponseCoreAsync(cancellationToken).ConfigureAwait(false);
+            return ParseTools(response);
+        }
+        finally
+        {
+            _lock.Release();
+        }
     }
 
     /// <inheritdoc/>
@@ -153,10 +170,17 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
             }
         };
 
-        await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
-        var response = await ReadResponseAsync(cancellationToken).ConfigureAwait(false);
-
-        return ParseInvocationResult(response);
+        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await WriteLineAsync(JsonSerializer.Serialize(request), cancellationToken).ConfigureAwait(false);
+            using var response = await ReadResponseCoreAsync(cancellationToken).ConfigureAwait(false);
+            return ParseInvocationResult(response);
+        }
+        finally
+        {
+            _lock.Release();
+        }
     }
 
     /// <inheritdoc/>
@@ -186,6 +210,8 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
                 _process = null;
             }
         }
+
+        _lock.Dispose();
     }
 
     private void EnsureProcess()
@@ -198,7 +224,8 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
             FileName = _command,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
-            RedirectStandardError = true,
+            // Do NOT redirect stderr: if the server writes enough stderr output the pipe buffer
+            // fills and blocks the server process, causing tool calls to hang.
             UseShellExecute = false,
             CreateNoWindow = true,
 #if NET8_0_OR_GREATER
@@ -213,7 +240,11 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
             foreach (var arg in _args)
                 psi.ArgumentList.Add(arg);
 #else
-            psi.Arguments = string.Join(" ", _args);
+            // netstandard2.0: build a properly quoted argument string.
+            var parts = new List<string>(_args.Count);
+            foreach (var arg in _args)
+                parts.Add(QuoteArgument(arg));
+            psi.Arguments = string.Join(" ", parts);
 #endif
         }
 
@@ -233,10 +264,9 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
             throw new InvalidOperationException("InitializeAsync must be called before using this client.");
     }
 
-    private async Task SendRequestAsync(object request, CancellationToken cancellationToken)
+    private async Task WriteLineAsync(string line, CancellationToken cancellationToken)
     {
-        var json = JsonSerializer.Serialize(request);
-        await _process!.StandardInput.WriteLineAsync(json
+        await _process!.StandardInput.WriteLineAsync(line
 #if NET8_0_OR_GREATER
             .AsMemory(), cancellationToken
 #endif
@@ -248,7 +278,11 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
         ).ConfigureAwait(false);
     }
 
-    private async Task<JsonDocument> ReadResponseAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Reads the next JSON-RPC response line, skipping notifications (messages without an <c>id</c>)
+    /// and malformed lines. The caller is responsible for disposing the returned <see cref="JsonDocument"/>.
+    /// </summary>
+    private async Task<JsonDocument> ReadResponseCoreAsync(CancellationToken cancellationToken)
     {
         while (true)
         {
@@ -265,7 +299,28 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
             if (string.IsNullOrWhiteSpace(line))
                 continue;
 
-            return JsonDocument.Parse(line);
+            JsonDocument? document = null;
+            try
+            {
+                document = JsonDocument.Parse(line);
+            }
+#pragma warning disable CA1031 // Malformed JSON lines must not crash the read loop
+            catch (Exception)
+#pragma warning restore CA1031
+            {
+                // Ignore malformed JSON lines and continue reading.
+                continue;
+            }
+
+            // JSON-RPC notifications do not include an "id" field; skip them.
+            if (!document.RootElement.TryGetProperty("id", out var idProperty) ||
+                idProperty.ValueKind == JsonValueKind.Null)
+            {
+                document.Dispose();
+                continue;
+            }
+
+            return document;
         }
     }
 
@@ -392,5 +447,31 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
         }
 
         return McpInvocationResult.Success(result.GetRawText());
+    }
+
+    /// <summary>
+    /// Quotes a single command-line argument for the netstandard2.0 <c>ProcessStartInfo.Arguments</c> path.
+    /// Arguments containing spaces, tabs, or double-quotes are wrapped in double-quotes with inner
+    /// double-quotes escaped.
+    /// </summary>
+    private static string QuoteArgument(string arg)
+    {
+        if (arg.Length == 0)
+            return "\"\"";
+
+        var needsQuoting = false;
+        foreach (var c in arg)
+        {
+            if (c == ' ' || c == '\t' || c == '"')
+            {
+                needsQuoting = true;
+                break;
+            }
+        }
+
+        if (!needsQuoting)
+            return arg;
+
+        return '"' + arg.Replace("\"", "\\\"") + '"';
     }
 }

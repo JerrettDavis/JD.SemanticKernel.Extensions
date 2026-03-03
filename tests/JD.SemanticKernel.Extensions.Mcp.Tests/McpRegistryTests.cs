@@ -85,9 +85,9 @@ public class McpRegistryTests
     }
 
     [Fact]
-    public async Task GetAllAsync_SameScopeConflict_LastWriterWins()
+    public async Task GetAllAsync_SameScopeConflict_FirstWriterWins()
     {
-        // Both are User scope; second provider discovered wins (last-write)
+        // Both are User scope; the first provider discovered wins (first-write).
         var first = MakeServer("shared", "provider-1", McpScope.User);
         var second = MakeServer("shared", "provider-2", McpScope.User);
 

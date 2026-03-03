@@ -44,8 +44,9 @@ public sealed class CodexMcpDiscoveryProvider : FileMcpDiscoveryProvider
             AllowTrailingCommas = true,
         });
 
+        var workDir = _workingDirectory ?? Directory.GetCurrentDirectory();
         var scope = sourcePath.StartsWith(
-            Directory.GetCurrentDirectory(), StringComparison.OrdinalIgnoreCase)
+            workDir, StringComparison.OrdinalIgnoreCase)
             ? McpScope.Project
             : McpScope.User;
 
