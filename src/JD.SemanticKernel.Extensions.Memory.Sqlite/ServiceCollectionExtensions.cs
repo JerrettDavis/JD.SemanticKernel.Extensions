@@ -1,6 +1,6 @@
 using System;
-using Microsoft.Extensions.DependencyInjection;
 using JD.SemanticKernel.Extensions.Memory;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace JD.SemanticKernel.Extensions.Memory.Sqlite;
 

@@ -1,0 +1,301 @@
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace JD.SemanticKernel.Extensions.Mcp.Transport;
+
+/// <summary>
+/// MCP client that communicates with a server over HTTP using JSON-RPC 2.0.
+/// </summary>
+public sealed class HttpMcpClient : IMcpClient, IDisposable
+{
+    private readonly Uri _endpoint;
+    private readonly HttpClient _httpClient;
+    private readonly bool _ownsHttpClient;
+    private int _nextId;
+    private bool _initialized;
+
+    /// <summary>
+    /// Initializes a new instance of <see cref="HttpMcpClient"/> using a provided <see cref="HttpClient"/>.
+    /// </summary>
+    /// <param name="endpoint">The JSON-RPC endpoint URI of the MCP server.</param>
+    /// <param name="httpClient">The HTTP client to use for requests.</param>
+    public HttpMcpClient(Uri endpoint, HttpClient httpClient)
+    {
+#if NET8_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(endpoint);
+        ArgumentNullException.ThrowIfNull(httpClient);
+#else
+        if (endpoint is null) throw new ArgumentNullException(nameof(endpoint));
+        if (httpClient is null) throw new ArgumentNullException(nameof(httpClient));
+#endif
+        _endpoint = endpoint;
+        _httpClient = httpClient;
+        _ownsHttpClient = false;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of <see cref="HttpMcpClient"/> that creates and owns its own <see cref="HttpClient"/>.
+    /// </summary>
+    /// <param name="endpoint">The JSON-RPC endpoint URI of the MCP server.</param>
+    public HttpMcpClient(Uri endpoint)
+    {
+#if NET8_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(endpoint);
+#else
+        if (endpoint is null) throw new ArgumentNullException(nameof(endpoint));
+#endif
+        _endpoint = endpoint;
+        _httpClient = new HttpClient();
+        _ownsHttpClient = true;
+    }
+
+    /// <summary>
+    /// Creates an <see cref="HttpMcpClient"/> from a <see cref="McpServerDefinition"/>.
+    /// </summary>
+    /// <exception cref="ArgumentException">Thrown when the definition does not use HTTP transport.</exception>
+    public static HttpMcpClient FromDefinition(McpServerDefinition definition)
+    {
+#if NET8_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(definition);
+#else
+        if (definition is null) throw new ArgumentNullException(nameof(definition));
+#endif
+
+        if (definition.Transport != McpTransportType.Http || definition.Url is null)
+            throw new ArgumentException("Definition must use HTTP transport and have a URL.", nameof(definition));
+
+        return new HttpMcpClient(definition.Url);
+    }
+
+    /// <inheritdoc/>
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        if (_initialized)
+            return;
+
+        var requestId = Interlocked.Increment(ref _nextId);
+        var request = CreateRequest(requestId, "initialize", new
+        {
+            protocolVersion = "2024-11-05",
+            clientInfo = new { name = "JD.SemanticKernel.Extensions.Mcp", version = "1.0" },
+            capabilities = new { }
+        });
+
+        var _ = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+        _initialized = true;
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<McpToolDefinition>> GetToolsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        EnsureInitialized();
+
+        var requestId = Interlocked.Increment(ref _nextId);
+        var request = CreateRequest(requestId, "tools/list", new { });
+
+        var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+        return ParseTools(response);
+    }
+
+    /// <inheritdoc/>
+    public async Task<McpInvocationResult> InvokeAsync(
+        string toolName,
+        IReadOnlyDictionary<string, object?> arguments,
+        CancellationToken cancellationToken = default)
+    {
+#if NET8_0_OR_GREATER
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
+        ArgumentNullException.ThrowIfNull(arguments);
+#else
+        if (string.IsNullOrWhiteSpace(toolName)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(toolName));
+        if (arguments is null) throw new ArgumentNullException(nameof(arguments));
+#endif
+
+        EnsureInitialized();
+
+        var requestId = Interlocked.Increment(ref _nextId);
+        var request = CreateRequest(requestId, "tools/call", new
+        {
+            name = toolName,
+            arguments
+        });
+
+        var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+        return ParseInvocationResult(response);
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        if (_ownsHttpClient)
+            _httpClient.Dispose();
+    }
+
+    private static object CreateRequest(int id, string method, object @params) =>
+        new { jsonrpc = "2.0", id, method, @params };
+
+    private async Task<JsonDocument> SendRequestAsync(object request, CancellationToken cancellationToken)
+    {
+        var json = JsonSerializer.Serialize(request);
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, _endpoint)
+        {
+            Content = content
+        };
+        httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var httpResponse = await _httpClient
+            .SendAsync(httpRequest, cancellationToken)
+            .ConfigureAwait(false);
+
+        httpResponse.EnsureSuccessStatusCode();
+
+        var responseJson = await httpResponse.Content
+            .ReadAsStringAsync(
+#if NET8_0_OR_GREATER
+            cancellationToken
+#endif
+            )
+            .ConfigureAwait(false);
+
+        return JsonDocument.Parse(responseJson);
+    }
+
+    private void EnsureInitialized()
+    {
+        if (!_initialized)
+            throw new InvalidOperationException("InitializeAsync must be called before using this client.");
+    }
+
+    private static List<McpToolDefinition> ParseTools(JsonDocument response)
+    {
+        var results = new List<McpToolDefinition>();
+
+        if (!response.RootElement.TryGetProperty("result", out var result))
+            return results;
+
+        if (!result.TryGetProperty("tools", out var toolsEl) ||
+            toolsEl.ValueKind != JsonValueKind.Array)
+        {
+            return results;
+        }
+
+        foreach (var toolEl in toolsEl.EnumerateArray())
+        {
+            if (!toolEl.TryGetProperty("name", out var nameEl) ||
+                nameEl.ValueKind != JsonValueKind.String)
+            {
+                continue;
+            }
+
+            var name = nameEl.GetString()!;
+            string? description = null;
+            if (toolEl.TryGetProperty("description", out var descEl) &&
+                descEl.ValueKind == JsonValueKind.String)
+            {
+                description = descEl.GetString();
+            }
+
+            var parameters = ParseToolParameters(toolEl);
+            results.Add(new McpToolDefinition(name, description, parameters));
+        }
+
+        return results;
+    }
+
+    private static List<McpToolParameter> ParseToolParameters(JsonElement toolEl)
+    {
+        var results = new List<McpToolParameter>();
+
+        if (!toolEl.TryGetProperty("inputSchema", out var schemaEl) ||
+            schemaEl.ValueKind != JsonValueKind.Object)
+        {
+            return results;
+        }
+
+        if (!schemaEl.TryGetProperty("properties", out var propsEl) ||
+            propsEl.ValueKind != JsonValueKind.Object)
+        {
+            return results;
+        }
+
+        var requiredNames = new HashSet<string>(StringComparer.Ordinal);
+        if (schemaEl.TryGetProperty("required", out var reqEl) &&
+            reqEl.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var req in reqEl.EnumerateArray())
+            {
+                if (req.ValueKind == JsonValueKind.String)
+                    requiredNames.Add(req.GetString()!);
+            }
+        }
+
+        foreach (var prop in propsEl.EnumerateObject())
+        {
+            string? description = null;
+            string? type = null;
+
+            if (prop.Value.TryGetProperty("description", out var descEl) &&
+                descEl.ValueKind == JsonValueKind.String)
+            {
+                description = descEl.GetString();
+            }
+
+            if (prop.Value.TryGetProperty("type", out var typeEl) &&
+                typeEl.ValueKind == JsonValueKind.String)
+            {
+                type = typeEl.GetString();
+            }
+
+            results.Add(new McpToolParameter(
+                prop.Name,
+                description,
+                type,
+                requiredNames.Contains(prop.Name)));
+        }
+
+        return results;
+    }
+
+    private static McpInvocationResult ParseInvocationResult(JsonDocument response)
+    {
+        var root = response.RootElement;
+
+        if (root.TryGetProperty("error", out var errorEl))
+        {
+            var message = errorEl.TryGetProperty("message", out var msgEl)
+                ? msgEl.GetString() ?? "Unknown error"
+                : "Unknown error";
+            return McpInvocationResult.Failure(message);
+        }
+
+        if (!root.TryGetProperty("result", out var result))
+            return McpInvocationResult.Success(null);
+
+        if (result.TryGetProperty("content", out var contentEl) &&
+            contentEl.ValueKind == JsonValueKind.Array)
+        {
+            var sb = new StringBuilder();
+            foreach (var item in contentEl.EnumerateArray())
+            {
+                if (item.TryGetProperty("text", out var textEl) &&
+                    textEl.ValueKind == JsonValueKind.String)
+                {
+                    sb.Append(textEl.GetString());
+                }
+            }
+
+            return McpInvocationResult.Success(sb.Length > 0 ? sb.ToString() : null);
+        }
+
+        return McpInvocationResult.Success(result.GetRawText());
+    }
+}
