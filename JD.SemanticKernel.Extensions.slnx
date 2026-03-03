@@ -7,6 +7,7 @@
     <Project Path="src/JD.SemanticKernel.Extensions.Memory/JD.SemanticKernel.Extensions.Memory.csproj" />
     <Project Path="src/JD.SemanticKernel.Extensions.Memory.Sqlite/JD.SemanticKernel.Extensions.Memory.Sqlite.csproj" />
     <Project Path="src/JD.SemanticKernel.Extensions/JD.SemanticKernel.Extensions.csproj" />
+    <Project Path="src/JD.SemanticKernel.Extensions.Mcp/JD.SemanticKernel.Extensions.Mcp.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/JD.SemanticKernel.Extensions.Skills.Tests/JD.SemanticKernel.Extensions.Skills.Tests.csproj" />
@@ -16,6 +17,7 @@
     <Project Path="tests/JD.SemanticKernel.Extensions.Memory.Tests/JD.SemanticKernel.Extensions.Memory.Tests.csproj" />
     <Project Path="tests/JD.SemanticKernel.Extensions.Memory.Sqlite.Tests/JD.SemanticKernel.Extensions.Memory.Sqlite.Tests.csproj" />
     <Project Path="tests/JD.SemanticKernel.Extensions.IntegrationTests/JD.SemanticKernel.Extensions.IntegrationTests.csproj" />
+    <Project Path="tests/JD.SemanticKernel.Extensions.Mcp.Tests/JD.SemanticKernel.Extensions.Mcp.Tests.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/SkillDemo/SkillDemo.csproj" />

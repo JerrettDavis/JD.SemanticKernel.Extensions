@@ -110,10 +110,10 @@ public sealed class MemoryIntegrationTests : IDisposable
         var kernel = OllamaConfig.CreateEmbeddingKernel();
         var memory = new SemanticMemory(_backend, kernel);
 
-        const string customId = "test-doc-001";
-        await memory.StoreAsync("The Eiffel Tower is located in Paris, France.", id: customId);
+        const string CustomId = "test-doc-001";
+        await memory.StoreAsync("The Eiffel Tower is located in Paris, France.", id: CustomId);
 
-        Assert.True(await memory.ExistsAsync(customId));
+        Assert.True(await memory.ExistsAsync(CustomId));
     }
 
     [SkippableFact]
