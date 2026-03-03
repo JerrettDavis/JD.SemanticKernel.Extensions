@@ -96,7 +96,81 @@ public static class HookParser
 
     private sealed class HookContainer
     {
+        [JsonConverter(typeof(HooksPropertyConverter))]
         public List<HookEntry>? Hooks { get; set; }
+    }
+
+    /// <summary>
+    /// Handles both hook formats:
+    /// - Legacy flat array: <c>{"hooks": [{"event": "PreToolUse", ...}]}</c>
+    /// - Claude Code nested dict: <c>{"hooks": {"PreToolUse": [{"hooks": [{"command": "..."}]}]}}</c>
+    /// </summary>
+    private sealed class HooksPropertyConverter : JsonConverter<List<HookEntry>?>
+    {
+        public override List<HookEntry>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Null)
+                return null;
+
+            // Flat array format
+            if (reader.TokenType == JsonTokenType.StartArray)
+                return JsonSerializer.Deserialize<List<HookEntry>>(ref reader, options);
+
+            // Dictionary format: {"PreToolUse": [...], "PostToolUse": [...]}
+            if (reader.TokenType == JsonTokenType.StartObject)
+            {
+                var result = new List<HookEntry>();
+                using var doc = JsonDocument.ParseValue(ref reader);
+
+                foreach (var eventProp in doc.RootElement.EnumerateObject())
+                {
+                    var eventName = eventProp.Name;
+                    if (eventProp.Value.ValueKind != JsonValueKind.Array)
+                        continue;
+
+                    foreach (var group in eventProp.Value.EnumerateArray())
+                    {
+                        // Each group may have a nested "hooks" array
+                        if (group.TryGetProperty("hooks", out var innerHooks) &&
+                            innerHooks.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var hook in innerHooks.EnumerateArray())
+                            {
+                                result.Add(new HookEntry
+                                {
+                                    Event = eventName,
+                                    Command = hook.TryGetProperty("command", out var cmd) ? cmd.GetString() : null,
+                                    Prompt = hook.TryGetProperty("prompt", out var prompt) ? prompt.GetString() : null,
+                                    TimeoutMs = hook.TryGetProperty("timeout", out var t) && t.TryGetInt32(out var tv) ? tv * 1000
+                                              : hook.TryGetProperty("timeout_ms", out var tms) && tms.TryGetInt32(out var tmsv) ? tmsv
+                                              : null,
+                                    ToolName = hook.TryGetProperty("tool_name", out var tn) ? tn.GetString() : null,
+                                });
+                            }
+                        }
+                        else
+                        {
+                            // Flat entry within the event group
+                            result.Add(new HookEntry
+                            {
+                                Event = eventName,
+                                Command = group.TryGetProperty("command", out var cmd) ? cmd.GetString() : null,
+                                Prompt = group.TryGetProperty("prompt", out var prompt) ? prompt.GetString() : null,
+                                TimeoutMs = group.TryGetProperty("timeout_ms", out var tms) && tms.TryGetInt32(out var tmsv) ? tmsv : null,
+                                ToolName = group.TryGetProperty("tool_name", out var tn) ? tn.GetString() : null,
+                            });
+                        }
+                    }
+                }
+
+                return result;
+            }
+
+            throw new JsonException($"Unexpected token type '{reader.TokenType}' for hooks property.");
+        }
+
+        public override void Write(Utf8JsonWriter writer, List<HookEntry>? value, JsonSerializerOptions options) =>
+            JsonSerializer.Serialize(writer, value, options);
     }
 
     private sealed class HookEntry

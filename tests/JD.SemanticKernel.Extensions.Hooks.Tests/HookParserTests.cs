@@ -129,4 +129,58 @@ public class HookParserTests
             Assert.Single(hooks);
         }
     }
+
+    [Fact]
+    public void Parse_ClaudeCodeNestedFormat_ReturnsHookDefinitions()
+    {
+        var json = """
+            {
+                "description": "Test plugin hooks",
+                "hooks": {
+                    "PreToolUse": [
+                        {
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": "python3 pretooluse.py",
+                                    "timeout": 10
+                                }
+                            ]
+                        }
+                    ],
+                    "PostToolUse": [
+                        {
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": "python3 posttooluse.py",
+                                    "timeout": 5
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+            """;
+
+        var hooks = HookParser.Parse(json);
+
+        Assert.Equal(2, hooks.Count);
+        Assert.Equal(HookEvent.PreToolUse, hooks[0].Event);
+        Assert.Equal("python3 pretooluse.py", hooks[0].Command);
+        Assert.Equal(10000, hooks[0].TimeoutMs); // 10 seconds → 10000ms
+        Assert.Equal(HookEvent.PostToolUse, hooks[1].Event);
+        Assert.Equal("python3 posttooluse.py", hooks[1].Command);
+        Assert.Equal(5000, hooks[1].TimeoutMs);
+    }
+
+    [Fact]
+    public void Parse_EmptyNestedFormat_ReturnsEmpty()
+    {
+        var json = """{"hooks": {}}""";
+
+        var hooks = HookParser.Parse(json);
+
+        Assert.Empty(hooks);
+    }
 }
