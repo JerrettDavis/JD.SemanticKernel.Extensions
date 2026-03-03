@@ -45,8 +45,9 @@ public sealed class CodexMcpDiscoveryProvider : FileMcpDiscoveryProvider
         });
 
         var workDir = _workingDirectory ?? Directory.GetCurrentDirectory();
-        var scope = sourcePath.StartsWith(
-            workDir, StringComparison.OrdinalIgnoreCase)
+        var fullWorkDir = Path.GetFullPath(workDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var fullSourcePath = Path.GetFullPath(sourcePath);
+        var scope = fullSourcePath.StartsWith(fullWorkDir, StringComparison.OrdinalIgnoreCase)
             ? McpScope.Project
             : McpScope.User;
 

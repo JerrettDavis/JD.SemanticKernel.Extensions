@@ -70,14 +70,14 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
         if (_initialized)
             return;
 
-        EnsureProcess();
-
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             // Double-check after acquiring the lock to handle concurrent callers.
             if (_initialized)
                 return;
+
+            EnsureProcess();
 
             var requestId = Interlocked.Increment(ref _nextId);
             var initRequest = new
@@ -216,8 +216,14 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
 
     private void EnsureProcess()
     {
-        if (_process is not null && !_process.HasExited)
-            return;
+        if (_process is not null)
+        {
+            if (!_process.HasExited)
+                return;
+
+            _process.Dispose();
+            _process = null;
+        }
 
         var psi = new ProcessStartInfo
         {

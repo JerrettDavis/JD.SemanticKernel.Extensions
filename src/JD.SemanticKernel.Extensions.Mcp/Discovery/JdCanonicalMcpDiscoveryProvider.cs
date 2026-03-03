@@ -54,6 +54,24 @@ public sealed class JdCanonicalMcpDiscoveryProvider : FileMcpDiscoveryProvider
     private bool IsProjectPath(string sourcePath)
     {
         var workDir = _workingDirectory ?? Directory.GetCurrentDirectory();
-        return sourcePath.StartsWith(workDir, StringComparison.OrdinalIgnoreCase);
+        var fullWorkDir = Path.GetFullPath(workDir)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var fullSourcePath = Path.GetFullPath(sourcePath);
+
+#if NET8_0_OR_GREATER
+        var relative = Path.GetRelativePath(fullWorkDir, fullSourcePath);
+        if (Path.IsPathRooted(relative))
+            return false;
+        if (relative.Equals("..", StringComparison.Ordinal) ||
+            relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+            relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal))
+        {
+            return false;
+        }
+        return true;
+#else
+        var normalizedWorkDir = fullWorkDir + Path.DirectorySeparatorChar;
+        return fullSourcePath.StartsWith(normalizedWorkDir, StringComparison.OrdinalIgnoreCase);
+#endif
     }
 }

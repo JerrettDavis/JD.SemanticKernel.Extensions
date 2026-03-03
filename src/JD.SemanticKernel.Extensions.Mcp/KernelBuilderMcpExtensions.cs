@@ -6,6 +6,7 @@ using JD.SemanticKernel.Extensions.Mcp.Discovery;
 using JD.SemanticKernel.Extensions.Mcp.KernelIntegration;
 using JD.SemanticKernel.Extensions.Mcp.Registry;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 
 namespace JD.SemanticKernel.Extensions.Mcp;
@@ -72,6 +73,7 @@ public static class KernelBuilderMcpExtensions
         var registry = kernel.Services.GetRequiredService<IMcpRegistry>();
         var servers = await registry.GetAllAsync(cancellationToken).ConfigureAwait(false);
 
+        var logger = kernel.LoggerFactory.CreateLogger(typeof(KernelBuilderMcpExtensions));
         foreach (var server in servers)
         {
             if (!server.IsEnabled)
@@ -85,10 +87,10 @@ public static class KernelBuilderMcpExtensions
                 kernel.Plugins.Add(plugin);
             }
 #pragma warning disable CA1031 // Individual server failures must not prevent other servers from loading
-            catch (Exception)
+            catch (Exception ex)
 #pragma warning restore CA1031
             {
-                // Skip servers that fail to initialize
+                logger.LogWarning(ex, "Failed to initialize MCP server '{ServerName}' from provider '{SourceProvider}'. It will be skipped.", server.Name, server.SourceProvider);
             }
         }
     }

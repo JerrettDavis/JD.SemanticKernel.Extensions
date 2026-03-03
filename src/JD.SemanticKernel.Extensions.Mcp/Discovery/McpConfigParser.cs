@@ -71,6 +71,39 @@ internal static class McpConfigParser
                 url = parsedUrl;
                 transport = McpTransportType.Http;
             }
+            else if (server.TryGetProperty("command", out var cmdElFallback) && cmdElFallback.ValueKind == JsonValueKind.String)
+            {
+                // URL exists but is invalid; fall back to command/stdio if available.
+                command = cmdElFallback.GetString();
+                transport = McpTransportType.Stdio;
+
+                if (server.TryGetProperty("args", out var argsElFallback) && argsElFallback.ValueKind == JsonValueKind.Array)
+                {
+                    var argList = new List<string>();
+                    foreach (var arg in argsElFallback.EnumerateArray())
+                    {
+                        if (arg.ValueKind == JsonValueKind.String)
+                            argList.Add(arg.GetString()!);
+                    }
+                    args = argList;
+                }
+
+                if (server.TryGetProperty("env", out var envElFallback) && envElFallback.ValueKind == JsonValueKind.Object)
+                {
+                    var envDict = new Dictionary<string, string>(StringComparer.Ordinal);
+                    foreach (var envProp in envElFallback.EnumerateObject())
+                    {
+                        if (envProp.Value.ValueKind == JsonValueKind.String)
+                            envDict[envProp.Name] = envProp.Value.GetString()!;
+                    }
+                    env = envDict;
+                }
+            }
+            else
+            {
+                // URL is invalid and no command fallback; treat as unrecognized transport.
+                return null;
+            }
         }
         else if (server.TryGetProperty("command", out var cmdEl) && cmdEl.ValueKind == JsonValueKind.String)
         {
