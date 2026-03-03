@@ -17,6 +17,9 @@ public sealed class HttpMcpClient : IMcpClient, IDisposable
     private readonly Uri _endpoint;
     private readonly HttpClient _httpClient;
     private readonly bool _ownsHttpClient;
+
+    // Serializes concurrent InitializeAsync calls so the handshake runs exactly once.
+    private readonly SemaphoreSlim _initializeLock = new SemaphoreSlim(1, 1);
     private int _nextId;
     private bool _initialized;
 
@@ -79,24 +82,36 @@ public sealed class HttpMcpClient : IMcpClient, IDisposable
         if (_initialized)
             return;
 
-        var requestId = Interlocked.Increment(ref _nextId);
-        var request = CreateRequest(requestId, "initialize", new
+        await _initializeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            protocolVersion = "2024-11-05",
-            clientInfo = new { name = "JD.SemanticKernel.Extensions.Mcp", version = "1.0" },
-            capabilities = new { }
-        });
+            // Double-check after acquiring the lock to handle concurrent callers.
+            if (_initialized)
+                return;
 
-        using var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+            var requestId = Interlocked.Increment(ref _nextId);
+            var request = CreateRequest(requestId, "initialize", new
+            {
+                protocolVersion = "2024-11-05",
+                clientInfo = new { name = "JD.SemanticKernel.Extensions.Mcp", version = "1.0" },
+                capabilities = new { }
+            });
 
-        // Validate that the initialize response is not a JSON-RPC error before proceeding.
-        if (response.RootElement.TryGetProperty("error", out var initErrorEl))
-            throw new InvalidOperationException($"MCP initialize failed: {initErrorEl.GetRawText()}");
+            using var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
 
-        // Send the follow-up notifications/initialized notification expected by some servers.
-        await SendNotificationAsync("notifications/initialized", cancellationToken).ConfigureAwait(false);
+            // Validate that the initialize response is not a JSON-RPC error before proceeding.
+            if (response.RootElement.TryGetProperty("error", out var initErrorEl))
+                throw new InvalidOperationException($"MCP initialize failed: {initErrorEl.GetRawText()}");
 
-        _initialized = true;
+            // Send the follow-up notifications/initialized notification expected by some servers.
+            await SendNotificationAsync("notifications/initialized", cancellationToken).ConfigureAwait(false);
+
+            _initialized = true;
+        }
+        finally
+        {
+            _initializeLock.Release();
+        }
     }
 
     /// <inheritdoc/>
@@ -109,7 +124,7 @@ public sealed class HttpMcpClient : IMcpClient, IDisposable
         var request = CreateRequest(requestId, "tools/list", new { });
 
         using var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
-        return ParseTools(response);
+        return McpResponseParser.ParseTools(response);
     }
 
     /// <inheritdoc/>
@@ -136,12 +151,13 @@ public sealed class HttpMcpClient : IMcpClient, IDisposable
         });
 
         using var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
-        return ParseInvocationResult(response);
+        return McpResponseParser.ParseInvocationResult(response);
     }
 
     /// <inheritdoc/>
     public void Dispose()
     {
+        _initializeLock.Dispose();
         if (_ownsHttpClient)
             _httpClient.Dispose();
     }
@@ -163,7 +179,9 @@ public sealed class HttpMcpClient : IMcpClient, IDisposable
         using var httpResponse = await _httpClient
             .SendAsync(httpRequest, cancellationToken)
             .ConfigureAwait(false);
-        // Notifications may receive 200 OK or 204 No Content; we do not parse the response body.
+
+        // Notifications/initialized should succeed; a failure indicates a server-side rejection.
+        httpResponse.EnsureSuccessStatusCode();
     }
 
     private async Task<JsonDocument> SendRequestAsync(object request, CancellationToken cancellationToken)
@@ -198,129 +216,5 @@ public sealed class HttpMcpClient : IMcpClient, IDisposable
     {
         if (!_initialized)
             throw new InvalidOperationException("InitializeAsync must be called before using this client.");
-    }
-
-    private static List<McpToolDefinition> ParseTools(JsonDocument response)
-    {
-        var results = new List<McpToolDefinition>();
-
-        if (!response.RootElement.TryGetProperty("result", out var result))
-            return results;
-
-        if (!result.TryGetProperty("tools", out var toolsEl) ||
-            toolsEl.ValueKind != JsonValueKind.Array)
-        {
-            return results;
-        }
-
-        foreach (var toolEl in toolsEl.EnumerateArray())
-        {
-            if (!toolEl.TryGetProperty("name", out var nameEl) ||
-                nameEl.ValueKind != JsonValueKind.String)
-            {
-                continue;
-            }
-
-            var name = nameEl.GetString()!;
-            string? description = null;
-            if (toolEl.TryGetProperty("description", out var descEl) &&
-                descEl.ValueKind == JsonValueKind.String)
-            {
-                description = descEl.GetString();
-            }
-
-            var parameters = ParseToolParameters(toolEl);
-            results.Add(new McpToolDefinition(name, description, parameters));
-        }
-
-        return results;
-    }
-
-    private static List<McpToolParameter> ParseToolParameters(JsonElement toolEl)
-    {
-        var results = new List<McpToolParameter>();
-
-        if (!toolEl.TryGetProperty("inputSchema", out var schemaEl) ||
-            schemaEl.ValueKind != JsonValueKind.Object)
-        {
-            return results;
-        }
-
-        if (!schemaEl.TryGetProperty("properties", out var propsEl) ||
-            propsEl.ValueKind != JsonValueKind.Object)
-        {
-            return results;
-        }
-
-        var requiredNames = new HashSet<string>(StringComparer.Ordinal);
-        if (schemaEl.TryGetProperty("required", out var reqEl) &&
-            reqEl.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var req in reqEl.EnumerateArray())
-            {
-                if (req.ValueKind == JsonValueKind.String)
-                    requiredNames.Add(req.GetString()!);
-            }
-        }
-
-        foreach (var prop in propsEl.EnumerateObject())
-        {
-            string? description = null;
-            string? type = null;
-
-            if (prop.Value.TryGetProperty("description", out var descEl) &&
-                descEl.ValueKind == JsonValueKind.String)
-            {
-                description = descEl.GetString();
-            }
-
-            if (prop.Value.TryGetProperty("type", out var typeEl) &&
-                typeEl.ValueKind == JsonValueKind.String)
-            {
-                type = typeEl.GetString();
-            }
-
-            results.Add(new McpToolParameter(
-                prop.Name,
-                description,
-                type,
-                requiredNames.Contains(prop.Name)));
-        }
-
-        return results;
-    }
-
-    private static McpInvocationResult ParseInvocationResult(JsonDocument response)
-    {
-        var root = response.RootElement;
-
-        if (root.TryGetProperty("error", out var errorEl))
-        {
-            var message = errorEl.TryGetProperty("message", out var msgEl)
-                ? msgEl.GetString() ?? "Unknown error"
-                : "Unknown error";
-            return McpInvocationResult.Failure(message);
-        }
-
-        if (!root.TryGetProperty("result", out var result))
-            return McpInvocationResult.Success(null);
-
-        if (result.TryGetProperty("content", out var contentEl) &&
-            contentEl.ValueKind == JsonValueKind.Array)
-        {
-            var sb = new StringBuilder();
-            foreach (var item in contentEl.EnumerateArray())
-            {
-                if (item.TryGetProperty("text", out var textEl) &&
-                    textEl.ValueKind == JsonValueKind.String)
-                {
-                    sb.Append(textEl.GetString());
-                }
-            }
-
-            return McpInvocationResult.Success(sb.Length > 0 ? sb.ToString() : null);
-        }
-
-        return McpInvocationResult.Success(result.GetRawText());
     }
 }

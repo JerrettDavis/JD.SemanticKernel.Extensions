@@ -46,6 +46,7 @@ public static class KernelBuilderMcpExtensions
         builder.Services.AddSingleton<IMcpDiscoveryProvider>(
             new JdCanonicalMcpDiscoveryProvider(workingDirectory));
 
+        builder.Services.AddSingleton<McpClientRegistry>();
         builder.Services.AddSingleton<IMcpRegistry>(sp =>
         {
             var providers = sp.GetServices<IMcpDiscoveryProvider>();
@@ -74,17 +75,30 @@ public static class KernelBuilderMcpExtensions
         var servers = await registry.GetAllAsync(cancellationToken).ConfigureAwait(false);
 
         var logger = kernel.LoggerFactory.CreateLogger(typeof(KernelBuilderMcpExtensions));
+        var clientCollection = kernel.Services.GetService<McpClientRegistry>();
+        if (clientCollection is null)
+            logger.LogWarning("McpClientRegistry is not registered. MCP client processes will not be disposed automatically. Call AddMcpDiscovery() during kernel configuration to enable lifecycle management.");
         foreach (var server in servers)
         {
             if (!server.IsEnabled)
                 continue;
 
+            var pluginName = McpKernelPluginFactory.NormalizePluginName(server.Name);
+
+            // Skip servers whose plugin is already registered to make this operation idempotent.
+            if (kernel.Plugins.Contains(pluginName))
+                continue;
+
             try
             {
-                var plugin = await McpKernelPluginFactory
+                var (plugin, client) = await McpKernelPluginFactory
                     .FromMcpServerAsync(server, cancellationToken)
                     .ConfigureAwait(false);
                 kernel.Plugins.Add(plugin);
+
+                // Track the client for disposal when the DI container is disposed.
+                if (client is IDisposable disposable)
+                    clientCollection?.Add(disposable);
             }
 #pragma warning disable CA1031 // Individual server failures must not prevent other servers from loading
             catch (Exception ex)
@@ -124,10 +138,22 @@ public static class KernelBuilderMcpExtensions
         if (!server.IsEnabled)
             throw new InvalidOperationException($"MCP server '{serverName}' is disabled.");
 
-        var plugin = await McpKernelPluginFactory
+        var (plugin, client) = await McpKernelPluginFactory
             .FromMcpServerAsync(server, cancellationToken)
             .ConfigureAwait(false);
 
         kernel.Plugins.Add(plugin);
+
+        // Track the client so it is disposed when the DI container is disposed.
+        var clientCollection = kernel.Services.GetService<McpClientRegistry>();
+        if (client is IDisposable disposable)
+        {
+            if (clientCollection is not null)
+                clientCollection.Add(disposable);
+            else
+                kernel.LoggerFactory
+                    .CreateLogger(typeof(KernelBuilderMcpExtensions))
+                    .LogWarning("McpClientRegistry is not registered. The MCP client for '{ServerName}' will not be disposed automatically.", serverName);
+        }
     }
 }

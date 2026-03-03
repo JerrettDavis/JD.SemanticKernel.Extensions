@@ -18,10 +18,16 @@ public static class McpKernelPluginFactory
     /// The server connection is established eagerly: <see cref="IMcpClient.InitializeAsync"/> and
     /// <see cref="IMcpClient.GetToolsAsync"/> are called during plugin creation. The returned plugin's
     /// functions share the underlying <see cref="IMcpClient"/> instance for all subsequent invocations.
+    /// The caller is responsible for disposing the returned <see cref="IMcpClient"/> when the plugin
+    /// is no longer needed (e.g., by registering it with <see cref="McpClientRegistry"/>).
     /// </summary>
     /// <param name="server">The MCP server definition to create a plugin from.</param>
-    /// <returns>A <see cref="KernelPlugin"/> containing one <see cref="KernelFunction"/> per MCP tool.</returns>
-    public static async Task<KernelPlugin> FromMcpServerAsync(
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>
+    /// A tuple of (<see cref="KernelPlugin"/>, <see cref="IMcpClient"/>) where the plugin contains
+    /// one <see cref="KernelFunction"/> per MCP tool and the client must be disposed by the caller.
+    /// </returns>
+    public static async Task<(KernelPlugin Plugin, IMcpClient Client)> FromMcpServerAsync(
         McpServerDefinition server,
         CancellationToken cancellationToken = default)
     {
@@ -42,20 +48,28 @@ public static class McpKernelPluginFactory
             foreach (var tool in tools)
                 functions.Add(CreateKernelFunction(tool, server, client));
 
-            return KernelPluginFactory.CreateFromFunctions(
-                NormalizeName(server.Name),
+            var plugin = KernelPluginFactory.CreateFromFunctions(
+                NormalizePluginName(server.Name),
                 server.DisplayName,
                 functions);
+
+            return (plugin, client);
         }
         catch
         {
             // Dispose client only if we failed to create a plugin;
-            // on success, the functions hold a reference to it.
+            // on success, the caller is responsible for disposal.
             if (client is IDisposable disposable)
                 disposable.Dispose();
             throw;
         }
     }
+
+    /// <summary>
+    /// Normalizes an MCP server or tool name to a valid Semantic Kernel plugin/function name
+    /// (alphanumeric characters and underscores only).
+    /// </summary>
+    public static string NormalizePluginName(string name) => NormalizeName(name);
 
     private static IMcpClient CreateClient(McpServerDefinition server) =>
         server.Transport switch

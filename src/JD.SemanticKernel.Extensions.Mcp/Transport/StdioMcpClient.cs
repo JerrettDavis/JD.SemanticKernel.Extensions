@@ -14,9 +14,17 @@ namespace JD.SemanticKernel.Extensions.Mcp.Transport;
 /// </summary>
 public sealed class StdioMcpClient : IMcpClient, IDisposable
 {
-    private readonly string _command;
+    private readonly string? _command;
     private readonly IReadOnlyList<string>? _args;
     private readonly IReadOnlyDictionary<string, string>? _env;
+
+    // Overrides for testing: when set, bypass the process and use these streams directly.
+    // These are caller-owned; the client must NOT dispose them.
+    // Must be StreamReader/StreamWriter to support cancellation-token overloads on NET8+.
+#pragma warning disable CA2213 // Caller owns these streams and is responsible for disposal
+    private readonly StreamReader? _injectedReader;
+    private readonly StreamWriter? _injectedWriter;
+#pragma warning restore CA2213
 
     // Serializes send+receive pairs so concurrent callers cannot interleave writes/reads.
     private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
@@ -62,6 +70,30 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
             throw new ArgumentException("Definition must use STDIO transport and have a command.", nameof(definition));
 
         return new StdioMcpClient(definition.Command, definition.Args, definition.Env);
+    }
+
+    /// <summary>
+    /// Creates a <see cref="StdioMcpClient"/> that reads from and writes to the provided streams
+    /// without launching a process. Intended for unit testing only.
+    /// </summary>
+    internal static StdioMcpClient CreateForTesting(StreamReader reader, StreamWriter writer)
+    {
+#if NET8_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentNullException.ThrowIfNull(writer);
+#else
+        if (reader is null) throw new ArgumentNullException(nameof(reader));
+        if (writer is null) throw new ArgumentNullException(nameof(writer));
+#endif
+        return new StdioMcpClient(reader, writer);
+    }
+
+    /// <summary>Testing constructor: uses injected streams instead of a process.</summary>
+    private StdioMcpClient(StreamReader reader, StreamWriter writer)
+    {
+        _command = null;
+        _injectedReader = reader;
+        _injectedWriter = writer;
     }
 
     /// <inheritdoc/>
@@ -133,7 +165,7 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
         {
             await WriteLineAsync(JsonSerializer.Serialize(request), cancellationToken).ConfigureAwait(false);
             using var response = await ReadResponseCoreAsync(cancellationToken).ConfigureAwait(false);
-            return ParseTools(response);
+            return McpResponseParser.ParseTools(response);
         }
         finally
         {
@@ -175,7 +207,7 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
         {
             await WriteLineAsync(JsonSerializer.Serialize(request), cancellationToken).ConfigureAwait(false);
             using var response = await ReadResponseCoreAsync(cancellationToken).ConfigureAwait(false);
-            return ParseInvocationResult(response);
+            return McpResponseParser.ParseInvocationResult(response);
         }
         finally
         {
@@ -216,6 +248,10 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
 
     private void EnsureProcess()
     {
+        // When using injected streams (for testing), no process is needed.
+        if (_injectedReader is not null)
+            return;
+
         if (_process is not null)
         {
             if (!_process.HasExited)
@@ -272,12 +308,13 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
 
     private async Task WriteLineAsync(string line, CancellationToken cancellationToken)
     {
-        await _process!.StandardInput.WriteLineAsync(line
+        var writer = _injectedWriter ?? _process!.StandardInput;
+        await writer.WriteLineAsync(line
 #if NET8_0_OR_GREATER
             .AsMemory(), cancellationToken
 #endif
         ).ConfigureAwait(false);
-        await _process.StandardInput.FlushAsync(
+        await writer.FlushAsync(
 #if NET8_0_OR_GREATER
             cancellationToken
 #endif
@@ -290,14 +327,15 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
     /// </summary>
     private async Task<JsonDocument> ReadResponseCoreAsync(CancellationToken cancellationToken)
     {
+        var reader = _injectedReader ?? _process!.StandardOutput;
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
 #if NET8_0_OR_GREATER
-            var line = await _process!.StandardOutput.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+            var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
 #else
-            var line = await _process!.StandardOutput.ReadLineAsync().ConfigureAwait(false);
+            var line = await reader.ReadLineAsync().ConfigureAwait(false);
 #endif
             if (line is null)
                 throw new InvalidOperationException("MCP server closed the output stream unexpectedly.");
@@ -328,131 +366,6 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
 
             return document;
         }
-    }
-
-    private static List<McpToolDefinition> ParseTools(JsonDocument response)
-    {
-        var results = new List<McpToolDefinition>();
-
-        if (!response.RootElement.TryGetProperty("result", out var result))
-            return results;
-
-        if (!result.TryGetProperty("tools", out var toolsEl) ||
-            toolsEl.ValueKind != JsonValueKind.Array)
-        {
-            return results;
-        }
-
-        foreach (var toolEl in toolsEl.EnumerateArray())
-        {
-            if (!toolEl.TryGetProperty("name", out var nameEl) ||
-                nameEl.ValueKind != JsonValueKind.String)
-            {
-                continue;
-            }
-
-            var name = nameEl.GetString()!;
-            string? description = null;
-            if (toolEl.TryGetProperty("description", out var descEl) &&
-                descEl.ValueKind == JsonValueKind.String)
-            {
-                description = descEl.GetString();
-            }
-
-            var parameters = ParseToolParameters(toolEl);
-            results.Add(new McpToolDefinition(name, description, parameters));
-        }
-
-        return results;
-    }
-
-    private static List<McpToolParameter> ParseToolParameters(JsonElement toolEl)
-    {
-        var results = new List<McpToolParameter>();
-
-        if (!toolEl.TryGetProperty("inputSchema", out var schemaEl) ||
-            schemaEl.ValueKind != JsonValueKind.Object)
-        {
-            return results;
-        }
-
-        if (!schemaEl.TryGetProperty("properties", out var propsEl) ||
-            propsEl.ValueKind != JsonValueKind.Object)
-        {
-            return results;
-        }
-
-        var requiredNames = new HashSet<string>(StringComparer.Ordinal);
-        if (schemaEl.TryGetProperty("required", out var reqEl) &&
-            reqEl.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var req in reqEl.EnumerateArray())
-            {
-                if (req.ValueKind == JsonValueKind.String)
-                    requiredNames.Add(req.GetString()!);
-            }
-        }
-
-        foreach (var prop in propsEl.EnumerateObject())
-        {
-            string? description = null;
-            string? type = null;
-
-            if (prop.Value.TryGetProperty("description", out var descEl) &&
-                descEl.ValueKind == JsonValueKind.String)
-            {
-                description = descEl.GetString();
-            }
-
-            if (prop.Value.TryGetProperty("type", out var typeEl) &&
-                typeEl.ValueKind == JsonValueKind.String)
-            {
-                type = typeEl.GetString();
-            }
-
-            results.Add(new McpToolParameter(
-                prop.Name,
-                description,
-                type,
-                requiredNames.Contains(prop.Name)));
-        }
-
-        return results;
-    }
-
-    private static McpInvocationResult ParseInvocationResult(JsonDocument response)
-    {
-        var root = response.RootElement;
-
-        if (root.TryGetProperty("error", out var errorEl))
-        {
-            var message = errorEl.TryGetProperty("message", out var msgEl)
-                ? msgEl.GetString() ?? "Unknown error"
-                : "Unknown error";
-            return McpInvocationResult.Failure(message);
-        }
-
-        if (!root.TryGetProperty("result", out var result))
-            return McpInvocationResult.Success(null);
-
-        // MCP result may contain an array of content items
-        if (result.TryGetProperty("content", out var contentEl) &&
-            contentEl.ValueKind == JsonValueKind.Array)
-        {
-            var sb = new StringBuilder();
-            foreach (var item in contentEl.EnumerateArray())
-            {
-                if (item.TryGetProperty("text", out var textEl) &&
-                    textEl.ValueKind == JsonValueKind.String)
-                {
-                    sb.Append(textEl.GetString());
-                }
-            }
-
-            return McpInvocationResult.Success(sb.Length > 0 ? sb.ToString() : null);
-        }
-
-        return McpInvocationResult.Success(result.GetRawText());
     }
 
     /// <summary>
