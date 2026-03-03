@@ -7,6 +7,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using JD.SemanticKernel.Extensions.Mcp.Transport;
 
+// CA2025: The StreamReader/StreamWriter instances passed to RunFakeServerAsync are local
+// variables that are NOT in using-blocks, so they cannot be automatically disposed before
+// the async task completes.  serverTask is always explicitly awaited before each test
+// returns, at which point the underlying AnonymousPipe streams also go out of scope.
+// This suppression is intentional and safe for these in-process pipe tests.
+#pragma warning disable CA2025
+
 namespace JD.SemanticKernel.Extensions.Mcp.Tests;
 
 /// <summary>

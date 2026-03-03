@@ -51,9 +51,11 @@ public abstract class FileMcpDiscoveryProvider : IMcpDiscoveryProvider
                 results.AddRange(servers);
             }
 #pragma warning disable CA1031 // Config file parsing must not crash the host process
-            catch (Exception)
+            catch (Exception ex)
 #pragma warning restore CA1031
             {
+                if (ex is OperationCanceledException)
+                    throw;
                 // Ignore malformed or inaccessible config files
             }
         }

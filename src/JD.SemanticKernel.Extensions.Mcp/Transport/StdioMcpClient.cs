@@ -99,12 +99,19 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
     /// <inheritdoc/>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        if (_initialized)
+        // Fast path: already initialized and either using injected test streams or process is
+        // still alive.  If the server process has exited, fall through so we re-handshake.
+        if (_initialized && (_injectedReader != null || (_process != null && !_process.HasExited)))
             return;
 
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            // If the server process exited after the last successful handshake, reset the
+            // initialized flag so the full handshake runs for the new process.
+            if (_injectedReader == null && _process?.HasExited == true)
+                _initialized = false;
+
             // Double-check after acquiring the lock to handle concurrent callers.
             if (_initialized)
                 return;
@@ -369,9 +376,14 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
     }
 
     /// <summary>
-    /// Quotes a single command-line argument for the netstandard2.0 <c>ProcessStartInfo.Arguments</c> path.
-    /// Arguments containing spaces, tabs, or double-quotes are wrapped in double-quotes with inner
-    /// double-quotes escaped.
+    /// Quotes a single command-line argument for the netstandard2.0 <c>ProcessStartInfo.Arguments</c> path,
+    /// following the Windows CRT / <c>CommandLineToArgvW</c> quoting rules:
+    /// <list type="bullet">
+    ///   <item>N backslashes immediately before a <c>"</c> → 2*N backslashes + <c>\"</c></item>
+    ///   <item>N trailing backslashes (at end of argument, before the closing <c>"</c>) → 2*N backslashes</item>
+    ///   <item>All other backslashes are passed through unchanged.</item>
+    /// </list>
+    /// Arguments that contain no spaces, tabs, or double-quotes are returned as-is.
     /// </summary>
     private static string QuoteArgument(string arg)
     {
@@ -391,6 +403,36 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
         if (!needsQuoting)
             return arg;
 
-        return '"' + arg.Replace("\"", "\\\"") + '"';
+        // Implement Windows CRT / CommandLineToArgvW quoting rules.
+        var sb = new StringBuilder(arg.Length + 2);
+        sb.Append('"');
+        var backslashCount = 0;
+        foreach (var c in arg)
+        {
+            if (c == '\\')
+            {
+                backslashCount++;
+            }
+            else if (c == '"')
+            {
+                // Double the preceding backslashes, then emit an escaped quote.
+                sb.Append('\\', backslashCount * 2);
+                backslashCount = 0;
+                sb.Append('\\');
+                sb.Append('"');
+            }
+            else
+            {
+                // Non-special character: flush pending backslashes as-is.
+                sb.Append('\\', backslashCount);
+                backslashCount = 0;
+                sb.Append(c);
+            }
+        }
+
+        // Double any trailing backslashes so they don't accidentally escape the closing '"'.
+        sb.Append('\\', backslashCount * 2);
+        sb.Append('"');
+        return sb.ToString();
     }
 }
