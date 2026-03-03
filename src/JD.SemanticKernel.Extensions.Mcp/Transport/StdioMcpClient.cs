@@ -31,7 +31,7 @@ public sealed class StdioMcpClient : IMcpClient, IDisposable
 
     private Process? _process;
     private int _nextId;
-    private bool _initialized;
+    private volatile bool _initialized;
 
     /// <summary>
     /// Initializes a new instance of <see cref="StdioMcpClient"/>.

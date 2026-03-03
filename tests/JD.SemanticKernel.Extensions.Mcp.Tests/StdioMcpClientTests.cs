@@ -54,6 +54,12 @@ public class StdioMcpClientTests
         var clientToServerClient = new System.IO.Pipes.AnonymousPipeClientStream(
             System.IO.Pipes.PipeDirection.Out,
             clientToServer.GetClientHandleAsString());
+        // Note: DisposeLocalCopyOfClientHandle() is intentionally NOT called here.
+        // In cross-process usage the server would call it to release its duplicate of
+        // the inherited client handle so EOF is detected when the child process closes
+        // its copy.  In this in-process test, AnonymousPipeClientStream takes ownership
+        // of the same OS handle (ownsHandle: true); calling DisposeLocalCopyOfClientHandle
+        // would close the only OS handle, invalidating the client stream.
 
         var serverToClient = new System.IO.Pipes.AnonymousPipeServerStream(
             System.IO.Pipes.PipeDirection.Out,
@@ -62,6 +68,8 @@ public class StdioMcpClientTests
             System.IO.Pipes.PipeDirection.In,
             serverToClient.GetClientHandleAsString());
 
+        // The StreamReader/StreamWriter wrappers below use leaveOpen: false (the default),
+        // so disposing them disposes the underlying pipe streams, releasing all OS handles.
         var serverReader = new StreamReader(clientToServer, Encoding.UTF8);
         var serverWriter = new StreamWriter(serverToClient, Encoding.UTF8) { AutoFlush = true };
         var clientReader = new StreamReader(serverToClientClient, Encoding.UTF8);

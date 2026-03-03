@@ -21,7 +21,7 @@ public sealed class HttpMcpClient : IMcpClient, IDisposable
     // Serializes concurrent InitializeAsync calls so the handshake runs exactly once.
     private readonly SemaphoreSlim _initializeLock = new SemaphoreSlim(1, 1);
     private int _nextId;
-    private bool _initialized;
+    private volatile bool _initialized;
 
     /// <summary>
     /// Initializes a new instance of <see cref="HttpMcpClient"/> using a provided <see cref="HttpClient"/>.
