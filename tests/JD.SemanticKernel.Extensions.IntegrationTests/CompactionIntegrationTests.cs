@@ -16,8 +16,8 @@ public sealed class CompactionIntegrationTests
     {
         IntegrationGuard.EnsureEnabled();
 
-        const string text = "The quick brown fox jumps over the lazy dog.";
-        var tokens = TokenEstimator.EstimateTokens(text);
+        const string Text = "The quick brown fox jumps over the lazy dog.";
+        var tokens = TokenEstimator.EstimateTokens(Text);
 
         Assert.InRange(tokens, 5, 20);
     }

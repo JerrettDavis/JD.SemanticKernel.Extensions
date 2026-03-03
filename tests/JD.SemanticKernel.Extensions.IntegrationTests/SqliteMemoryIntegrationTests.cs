@@ -79,9 +79,9 @@ public sealed class SqliteMemoryIntegrationTests : IDisposable
         var kernel = OllamaConfig.CreateEmbeddingKernel();
 
         // Store with first instance
-        const string docId = "persist-test-001";
+        const string DocId = "persist-test-001";
         var memory1 = new SemanticMemory(_backend, kernel);
-        await memory1.StoreAsync("Data that should persist across connections.", id: docId);
+        await memory1.StoreAsync("Data that should persist across connections.", id: DocId);
 
         // Dispose and clear pool before recreating
         _backend.Dispose();
@@ -90,7 +90,7 @@ public sealed class SqliteMemoryIntegrationTests : IDisposable
         using var backend2 = SqliteMemoryBackend.FromFile(_dbPath);
         var memory2 = new SemanticMemory(backend2, kernel);
 
-        Assert.True(await memory2.ExistsAsync(docId));
+        Assert.True(await memory2.ExistsAsync(DocId));
     }
 
     [SkippableFact]
