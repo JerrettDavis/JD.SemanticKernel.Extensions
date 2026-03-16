@@ -7,7 +7,7 @@
   <!-- ─── Build infrastructure (applied via Directory.Build.props) ─── -->
   <ItemGroup>
     <PackageVersion Include="Meziantou.Analyzer" Version="3.0.23" />
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.103" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.201" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.9.50" />
   </ItemGroup>
 
