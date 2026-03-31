@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" VersionOverride="10.0.5" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" Link="README.md" />
   </ItemGroup>
 
