@@ -42,7 +42,7 @@
   <!-- ─── Integration testing connectors ─── -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.74.0" />
-    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.6" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.7" />
   </ItemGroup>
 
 </Project>
