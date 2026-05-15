@@ -7,6 +7,11 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+      all-dependencies:
+        dependency-type: "all"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -16,3 +21,6 @@ updates:
     labels:
       - "dependencies"
       - "ci"
+    groups:
+      all-dependencies:
+        dependency-type: "all"
