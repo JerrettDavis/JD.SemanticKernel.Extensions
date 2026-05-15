@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# Conventional Commits validation hook
+# Validates commit messages against the conventional commits format
+
+allowed="^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([A-Za-z0-9._/-]+\))?!?: .+$"
+allowed_special="^(Merge .+|Revert \".+\")$"
+
+commit_msg_file="$1"
+
+if [ -f "$commit_msg_file" ]; then
+    commit_msg=$(cat "$commit_msg_file")
+    first_line=$(echo "$commit_msg" | head -n1)
+
+    if ! echo "$first_line" | grep -qE "$allowed" && ! echo "$first_line" | grep -qE "$allowed_special"; then
+        echo "ERROR: Commit message does not follow conventional commits format."
+        echo ""
+        echo "Expected format:"
+        echo "  type(scope): description"
+        echo "  type: description"
+        echo ""
+        echo "Allowed types:"
+        echo "  build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test"
+        echo ""
+        echo "Your commit message:"
+        echo "  $first_line"
+        echo ""
+        echo "Examples:"
+        echo "  feat(auth): add OAuth login"
+        echo "  fix(api): resolve null pointer in user endpoint"
+        echo "  chore(deps): update dependencies"
+        exit 1
+    fi
+fi
