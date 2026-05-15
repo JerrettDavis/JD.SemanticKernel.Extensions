@@ -20,6 +20,7 @@ jobs:
           script: |
             const allowed = /^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([A-Za-z0-9._/-]+\))?!?: .+$/;
             const allowedSpecial = /^(Merge .+|Revert ".+")$/;
+            const allowedDependabot = /^Bump .+ from .+ to .+$/;
 
             const failures = [];
             const title = context.payload.pull_request.title;
@@ -37,7 +38,7 @@ jobs:
 
             for (const commit of commits) {
               const subject = commit.commit.message.split('\n')[0];
-              if (!allowed.test(subject) && !allowedSpecial.test(subject)) {
+              if (!allowed.test(subject) && !allowedSpecial.test(subject) && !allowedDependabot.test(subject)) {
                 failures.push(`${commit.sha.substring(0, 7)}: ${subject}`);
               }
             }
