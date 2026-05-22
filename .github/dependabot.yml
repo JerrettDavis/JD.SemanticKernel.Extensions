@@ -7,11 +7,14 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+    cooldown:
+      default-days: 2
     groups:
-      production-dependencies:
-        dependency-type: "production"
       all-dependencies:
-        dependency-type: "all"
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -21,6 +24,11 @@ updates:
     labels:
       - "dependencies"
       - "ci"
+    commit-message:
+      prefix: "chore(deps)"
+    cooldown:
+      default-days: 2
     groups:
       all-dependencies:
-        dependency-type: "all"
+        patterns:
+          - "*"
