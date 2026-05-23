@@ -37,7 +37,7 @@ jobs:
 
             for (const commit of commits) {
               const subject = commit.commit.message.split('\n')[0];
-              if (!allowed.test(subject) && !allowedSpecial.test(subject) && !allowedDependabot.test(subject)) {
+              if (!allowed.test(subject) && !allowedSpecial.test(subject)) {
                 failures.push(`${commit.sha.substring(0, 7)}: ${subject}`);
               }
             }
@@ -56,5 +56,4 @@ jobs:
                 'Failures:',
                 ...failures.map(f => `  - ${f}`),
               ].join('\n'));
-            } ].join('\n'));
             }
