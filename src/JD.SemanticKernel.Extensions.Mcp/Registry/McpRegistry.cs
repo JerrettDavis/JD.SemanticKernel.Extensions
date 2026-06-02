@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using PatternKit.Behavioral.Chain;
 
 namespace JD.SemanticKernel.Extensions.Mcp.Registry;
 
@@ -37,21 +38,22 @@ public sealed class McpRegistry : IMcpRegistry
         CancellationToken cancellationToken = default)
     {
         var merged = new Dictionary<string, McpServerDefinition>(StringComparer.OrdinalIgnoreCase);
+        var state = new McpDiscoveryState(merged);
+        var chainBuilder = AsyncActionChain<McpDiscoveryState>.Create();
 
         foreach (var provider in _providers)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var servers = await provider.DiscoverAsync(cancellationToken).ConfigureAwait(false);
-
-            foreach (var server in servers)
+            chainBuilder.Use(async (current, token, next) =>
             {
-                if (!merged.TryGetValue(server.Name, out var existing) ||
-                    server.Scope > existing.Scope)
-                {
-                    merged[server.Name] = server;
-                }
-            }
+                token.ThrowIfCancellationRequested();
+                var servers = await provider.DiscoverAsync(token).ConfigureAwait(false);
+                current.Merge(servers);
+                await next(current, token).ConfigureAwait(false);
+            });
         }
+
+        var chain = chainBuilder.Build();
+        await chain.ExecuteAsync(state, cancellationToken).ConfigureAwait(false);
 
         return new List<McpServerDefinition>(merged.Values).AsReadOnly();
     }
@@ -75,5 +77,27 @@ public sealed class McpRegistry : IMcpRegistry
         }
 
         return null;
+    }
+
+    private sealed class McpDiscoveryState
+    {
+        private readonly Dictionary<string, McpServerDefinition> _merged;
+
+        public McpDiscoveryState(Dictionary<string, McpServerDefinition> merged)
+        {
+            _merged = merged;
+        }
+
+        public void Merge(IEnumerable<McpServerDefinition> servers)
+        {
+            foreach (var server in servers)
+            {
+                if (!_merged.TryGetValue(server.Name, out var existing) ||
+                    server.Scope > existing.Scope)
+                {
+                    _merged[server.Name] = server;
+                }
+            }
+        }
     }
 }

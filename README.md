@@ -11,6 +11,7 @@ An extensible toolkit for [Microsoft Semantic Kernel](https://github.com/microso
 - 📝 **Skills** — Parse `SKILL.md` files (YAML frontmatter + markdown) into `KernelFunction` or `PromptTemplate`
 - 🔗 **Hooks** — Map Claude Code lifecycle events (`PreToolUse`, `PostToolUse`, etc.) to SK's `IFunctionInvocationFilter` and `IPromptRenderFilter`
 - 📦 **Plugins** — Load `.claude-plugin/` directories with skills, hooks, and MCP configs
+- 🔌 **MCP** — Discover MCP servers from Claude Code, Claude Desktop, VS Code, Codex, Copilot, and JD canonical config with a PatternKit-backed provider chain
 - 🗜️ **Compaction** — Transparent context window management with configurable triggers and hierarchical summarization
 - 🧠 **Memory** — Semantic memory with MMR reranking, temporal decay scoring, and query expansion
 - 💾 **Memory.Sqlite** — SQLite-backed persistent memory storage
