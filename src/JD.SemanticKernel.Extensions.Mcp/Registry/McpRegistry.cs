@@ -18,6 +18,7 @@ namespace JD.SemanticKernel.Extensions.Mcp.Registry;
 public sealed class McpRegistry : IMcpRegistry
 {
     private readonly IReadOnlyList<IMcpDiscoveryProvider> _providers;
+    private readonly AsyncActionChain<McpDiscoveryState> _discoveryChain;
 
     /// <summary>
     /// Initializes a new instance of <see cref="McpRegistry"/>.
@@ -31,6 +32,7 @@ public sealed class McpRegistry : IMcpRegistry
         if (providers is null) throw new ArgumentNullException(nameof(providers));
 #endif
         _providers = providers;
+        _discoveryChain = BuildDiscoveryChain(_providers);
     }
 
     /// <inheritdoc/>
@@ -39,11 +41,20 @@ public sealed class McpRegistry : IMcpRegistry
     {
         var merged = new Dictionary<string, McpServerDefinition>(StringComparer.OrdinalIgnoreCase);
         var state = new McpDiscoveryState(merged);
-        var chainBuilder = AsyncActionChain<McpDiscoveryState>.Create();
 
-        foreach (var provider in _providers)
+        await _discoveryChain.ExecuteAsync(state, cancellationToken).ConfigureAwait(false);
+
+        return new List<McpServerDefinition>(merged.Values).AsReadOnly();
+    }
+
+    private static AsyncActionChain<McpDiscoveryState> BuildDiscoveryChain(
+        IReadOnlyList<IMcpDiscoveryProvider> providers)
+    {
+        var builder = AsyncActionChain<McpDiscoveryState>.Create();
+
+        foreach (var provider in providers)
         {
-            chainBuilder.Use(async (current, token, next) =>
+            builder.Use(async (current, token, next) =>
             {
                 token.ThrowIfCancellationRequested();
                 var servers = await provider.DiscoverAsync(token).ConfigureAwait(false);
@@ -52,10 +63,7 @@ public sealed class McpRegistry : IMcpRegistry
             });
         }
 
-        var chain = chainBuilder.Build();
-        await chain.ExecuteAsync(state, cancellationToken).ConfigureAwait(false);
-
-        return new List<McpServerDefinition>(merged.Values).AsReadOnly();
+        return builder.Build();
     }
 
     /// <inheritdoc/>
