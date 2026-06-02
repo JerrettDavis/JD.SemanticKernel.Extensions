@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -103,6 +104,27 @@ public class McpRegistryTests
         var results = await registry.GetAllAsync();
 
         Assert.Single(results);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_CancellationStopsPatternKitDiscoveryChain()
+    {
+        var cts = new CancellationTokenSource();
+        var p1 = Substitute.For<IMcpDiscoveryProvider>();
+        p1.DiscoverAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            cts.Cancel();
+            return new List<McpServerDefinition> { MakeServer("server-a", "p1", McpScope.User) };
+        });
+
+        var p2 = Substitute.For<IMcpDiscoveryProvider>();
+        p2.DiscoverAsync(Arg.Any<CancellationToken>()).Returns(
+            new List<McpServerDefinition> { MakeServer("server-b", "p2", McpScope.User) });
+
+        var registry = new McpRegistry(new[] { p1, p2 });
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => registry.GetAllAsync(cts.Token));
+        await p2.DidNotReceive().DiscoverAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
