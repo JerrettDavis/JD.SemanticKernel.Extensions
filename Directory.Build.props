@@ -39,4 +39,18 @@
     <PackageReference Include="Meziantou.Analyzer" PrivateAssets="all" />
   </ItemGroup>
 
+  <!--
+    NuGet audit mode: direct-only.
+    SQLitePCLRaw.lib.e_sqlite3 2.1.11 (GHSA-2m69-gcr7-jv3q) is pulled in as a transitive
+    dependency by Microsoft.Data.Sqlite 10.x. The 2.x series has no patched release, and the
+    3.x series uses a completely different native-library packaging scheme that is incompatible
+    with the SQLitePCLRaw.core 2.x managed shim that Microsoft.Data.Sqlite depends on.
+    Use NuGetAuditMode=direct so that NU1903 is not raised for this transitive package.
+    Direct dependencies (including Microsoft.Data.Sqlite itself) remain fully audited.
+    Revert this once Microsoft.Data.Sqlite ships a version that bundles a fixed SQLite native.
+  -->
+  <PropertyGroup>
+    <NuGetAuditMode>direct</NuGetAuditMode>
+  </PropertyGroup>
+
 </Project>
