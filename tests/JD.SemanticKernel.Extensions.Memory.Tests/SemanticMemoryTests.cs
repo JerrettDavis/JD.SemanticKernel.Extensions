@@ -51,7 +51,7 @@ public class SemanticMemoryTests
             Arg.Any<IList<string>>(), Arg.Any<Kernel>(), Arg.Any<CancellationToken>());
 #pragma warning restore CS0618
         await _backend.Received(1).StoreAsync(
-            Arg.Is<MemoryRecord>(r => r.Text == "test text"),
+            Arg.Is<MemoryRecord>(r => r!.Text == "test text"),
             Arg.Any<CancellationToken>());
     }
 
@@ -65,7 +65,7 @@ public class SemanticMemoryTests
 
         Assert.Equal("custom-id", id);
         await _backend.Received(1).StoreAsync(
-            Arg.Is<MemoryRecord>(r => r.Id == "custom-id"),
+            Arg.Is<MemoryRecord>(r => r!.Id == "custom-id"),
             Arg.Any<CancellationToken>());
     }
 
@@ -79,7 +79,7 @@ public class SemanticMemoryTests
         await memory.StoreAsync("text", metadata: metadata);
 
         await _backend.Received(1).StoreAsync(
-            Arg.Is<MemoryRecord>(r => r.Metadata["key"] == "value"),
+            Arg.Is<MemoryRecord>(r => r!.Metadata["key"] == "value"),
             Arg.Any<CancellationToken>());
     }
 
