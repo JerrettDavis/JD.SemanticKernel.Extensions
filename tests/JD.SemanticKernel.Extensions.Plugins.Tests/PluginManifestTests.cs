@@ -43,8 +43,8 @@ public class PluginManifestTests
         Assert.Equal("2.1.0", manifest.Version);
         Assert.Equal("A great plugin", manifest.Description);
         Assert.Equal(2, manifest.Dependencies.Count);
-        Assert.Contains("dep-a", manifest.Dependencies);
-        Assert.Contains("dep-b", manifest.Dependencies);
+        Assert.Contains("dep-a", manifest.Dependencies, StringComparer.Ordinal);
+        Assert.Contains("dep-b", manifest.Dependencies, StringComparer.Ordinal);
         Assert.Equal("custom-skills", manifest.SkillsDir);
         Assert.Equal("custom/hooks.json", manifest.HooksFile);
         Assert.Equal("mcp.json", manifest.McpConfig);

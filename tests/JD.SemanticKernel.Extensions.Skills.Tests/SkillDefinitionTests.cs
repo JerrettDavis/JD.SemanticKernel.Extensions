@@ -44,8 +44,8 @@ public class SkillDefinitionTests
         skill.AllowedTools.Add("Write");
 
         Assert.Equal(2, skill.AllowedTools.Count);
-        Assert.Contains("Read", skill.AllowedTools);
-        Assert.Contains("Write", skill.AllowedTools);
+        Assert.Contains("Read", skill.AllowedTools, StringComparer.Ordinal);
+        Assert.Contains("Write", skill.AllowedTools, StringComparer.Ordinal);
     }
 
     [Fact]
