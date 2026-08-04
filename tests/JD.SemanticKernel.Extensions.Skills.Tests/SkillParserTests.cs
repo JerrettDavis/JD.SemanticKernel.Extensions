@@ -42,9 +42,9 @@ public class SkillParserTests
         var skill = SkillParser.Parse(content);
 
         Assert.Equal(3, skill.AllowedTools.Count);
-        Assert.Contains("Read", skill.AllowedTools);
-        Assert.Contains("Grep", skill.AllowedTools);
-        Assert.Contains("Glob", skill.AllowedTools);
+        Assert.Contains("Read", skill.AllowedTools, StringComparer.Ordinal);
+        Assert.Contains("Grep", skill.AllowedTools, StringComparer.Ordinal);
+        Assert.Contains("Glob", skill.AllowedTools, StringComparer.Ordinal);
     }
 
     [Fact]
