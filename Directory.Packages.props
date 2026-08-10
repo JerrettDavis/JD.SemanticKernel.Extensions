@@ -6,7 +6,7 @@
 
   <!-- ─── Build infrastructure (applied via Directory.Build.props) ─── -->
   <ItemGroup>
-    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.138" />
+    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.140" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.301" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.10.91" />
   </ItemGroup>
@@ -14,8 +14,8 @@
   <!-- ─── Core library ─── -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.SemanticKernel" Version="1.78.0" />
-    <PackageVersion Include="PatternKit.Core" Version="0.147.15" />
+    <PackageVersion Include="Microsoft.SemanticKernel" Version="1.79.0" />
+    <PackageVersion Include="PatternKit.Core" Version="0.147.17" />
     <PackageVersion Include="System.Text.Json" Version="10.0.10" />
     <PackageVersion Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
@@ -42,7 +42,7 @@
 
   <!-- ─── Integration testing connectors ─── -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.78.0" />
+    <PackageVersion Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.79.0" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.10" />
   </ItemGroup>
 
