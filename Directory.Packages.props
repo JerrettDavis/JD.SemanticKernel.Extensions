@@ -6,7 +6,7 @@
 
   <!-- ─── Build infrastructure (applied via Directory.Build.props) ─── -->
   <ItemGroup>
-    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.253" />
+    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.262" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.401" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.10.94" />
   </ItemGroup>
@@ -15,7 +15,7 @@
   <ItemGroup>
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageVersion Include="Microsoft.SemanticKernel" Version="1.80.1" />
-    <PackageVersion Include="PatternKit.Core" Version="0.147.24" />
+    <PackageVersion Include="PatternKit.Core" Version="0.147.26" />
     <PackageVersion Include="System.Text.Json" Version="10.0.12" />
     <PackageVersion Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
@@ -33,7 +33,7 @@
   <ItemGroup>
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
