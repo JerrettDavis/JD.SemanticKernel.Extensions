@@ -6,7 +6,7 @@
 
   <!-- ─── Build infrastructure (applied via Directory.Build.props) ─── -->
   <ItemGroup>
-    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.292" />
+    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.299" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.401" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.10.94" />
   </ItemGroup>
@@ -14,8 +14,8 @@
   <!-- ─── Core library ─── -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.SemanticKernel" Version="1.80.1" />
-    <PackageVersion Include="PatternKit.Core" Version="0.147.27" />
+    <PackageVersion Include="Microsoft.SemanticKernel" Version="1.81.0" />
+    <PackageVersion Include="PatternKit.Core" Version="0.147.28" />
     <PackageVersion Include="System.Text.Json" Version="10.0.12" />
     <PackageVersion Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
@@ -36,13 +36,13 @@
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
     <PackageVersion Include="Xunit.SkippableFact" Version="1.5.85" />
   </ItemGroup>
 
   <!-- ─── Integration testing connectors ─── -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.80.1" />
+    <PackageVersion Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.81.0" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.12" />
   </ItemGroup>
 
